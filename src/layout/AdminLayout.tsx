@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSidebar } from "@/src/context/SidebarContext";
 import AppHeader from "@/src/layout/AppHeader";
 import AppSidebar from "@/src/layout/AppSidebar";
 import Backdrop from "@/src/layout/Backdrop";
 import React from "react";
+
+const REDIRECT_ATTEMPT_KEY = "auth-redirect-to-dashboard";
 
 export default function AdminLayout({
   children,
@@ -12,6 +15,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+
+  useEffect(() => {
+    sessionStorage.removeItem(REDIRECT_ATTEMPT_KEY);
+  }, []);
 
   const mainContentMargin = isMobileOpen
     ? "ml-0"

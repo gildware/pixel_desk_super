@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { getSession } from "@/src/services/api/auth.api";
 import type { Session } from "@/src/types/auth.types";
@@ -21,8 +22,10 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialFetchDone = useRef(false);
 
   const refetch = useCallback(async () => {
+    setLoading(true);
     try {
       const s = await getSession();
       setSession(s);
@@ -34,6 +37,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
     refetch();
   }, [refetch]);
 
