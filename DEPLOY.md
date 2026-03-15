@@ -20,3 +20,19 @@ If you still see a redirect loop (dashboard → login → dashboard):
 - `NEXT_PUBLIC_API_URL` – e.g. `https://api.pixeldesk.in`
 - `NEXT_PUBLIC_USE_API_PROXY=true` – required for production so dashboard session works
 - `NEXT_PUBLIC_DASHBOARD_URL` / `NEXT_PUBLIC_BASE_URL` – optional, for links
+
+## See CI build errors locally
+
+If you can’t view GitHub Actions logs (e.g. “Sign in to view logs”), run the same Docker build on your machine to see the full error:
+
+```bash
+# From repo root. Replace the URLs with your real values (or from GitHub Secrets).
+docker build --progress=plain \
+  --build-arg NEXT_PUBLIC_API_URL=https://api.pixeldesk.in \
+  --build-arg NEXT_PUBLIC_DASHBOARD_URL=https://super-admin.pixeldesk.in \
+  --build-arg NEXT_PUBLIC_BASE_URL=https://super-admin.pixeldesk.in \
+  --build-arg NEXT_PUBLIC_USE_API_PROXY=true \
+  -t pixel-super-admin:latest .
+```
+
+Scroll to the end of the output; the failure (e.g. from `npm run build`) will be there.

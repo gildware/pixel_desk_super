@@ -17,7 +17,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     res.data != null &&
     typeof res.data === "object"
   ) {
-    const d = res.data as Record<string, unknown>;
+    const d = res.data as unknown as Record<string, unknown>;
     return {
       totalCompanies: typeof d.totalCompanies === "number" ? d.totalCompanies : 0,
       totalUsers: typeof d.totalUsers === "number" ? d.totalUsers : 0,
