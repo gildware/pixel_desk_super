@@ -1,6 +1,6 @@
 import { apiConfig } from "@/src/config/api.config";
 
-type RequestInitWithBody = RequestInit & { body?: object };
+type RequestInitWithBody = Omit<RequestInit, "body"> & { body?: object };
 
 async function request<T>(
   url: string,
@@ -41,21 +41,27 @@ async function request<T>(
   return undefined as T;
 }
 
+function toRequestInitWithBody(init?: RequestInit, body?: object): RequestInitWithBody {
+  if (!init) return body !== undefined ? { body } : {};
+  const { body: _initBody, ...rest } = init;
+  return body !== undefined ? { ...rest, body } : rest;
+}
+
 export const apiClient = {
   get: <T>(url: string, init?: RequestInit) =>
-    request<T>(url, { ...init, method: "GET" }),
+    request<T>(url, { ...toRequestInitWithBody(init), method: "GET" }),
 
   post: <T>(url: string, body?: object, init?: RequestInit) =>
-    request<T>(url, { ...init, method: "POST", body }),
+    request<T>(url, { ...toRequestInitWithBody(init, body), method: "POST" }),
 
   put: <T>(url: string, body?: object, init?: RequestInit) =>
-    request<T>(url, { ...init, method: "PUT", body }),
+    request<T>(url, { ...toRequestInitWithBody(init, body), method: "PUT" }),
 
   patch: <T>(url: string, body?: object, init?: RequestInit) =>
-    request<T>(url, { ...init, method: "PATCH", body }),
+    request<T>(url, { ...toRequestInitWithBody(init, body), method: "PATCH" }),
 
   delete: <T>(url: string, init?: RequestInit) =>
-    request<T>(url, { ...init, method: "DELETE" }),
+    request<T>(url, { ...toRequestInitWithBody(init), method: "DELETE" }),
 };
 
 export { apiConfig };
