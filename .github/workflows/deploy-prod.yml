@@ -32,12 +32,12 @@ jobs:
             --build-arg NEXT_PUBLIC_DASHBOARD_URL=${{ secrets.NEXT_PUBLIC_DASHBOARD_URL }} \
             --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
             --build-arg NEXT_PUBLIC_USE_API_PROXY=true \
-            -t nextjs-landing:latest .
+            -t node-api-prod:latest .
 
       # Tag image for ECR
       - name: Tag Docker image
         run: |
-          docker tag nextjs-landing:latest 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+          docker tag node-api-prod:latest 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
 
       # Push to ECR
       - name: Push Docker image
