@@ -28,7 +28,7 @@ export default function LoginForm({
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-md dark:border-gray-800 dark:bg-white/[0.03] sm:p-8">
       <div className="mb-6">
         <h1 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90 sm:text-2xl">
-          Sign In to Pixel Desk Super Admin
+          Sign In to Pixel Desk
         </h1>
         <p className="text-theme-sm text-gray-500 dark:text-gray-400">
           Enter your email to receive a one-time password.

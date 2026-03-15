@@ -125,7 +125,7 @@ export default function AuthBase() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="w-full max-w-md px-4">
+      <div className="flex w-full max-w-md flex-col items-center px-4">
         {!email ? (
           <LoginForm
             onContinue={handleRequestOtp}
@@ -141,11 +141,6 @@ export default function AuthBase() {
             error={error}
           />
         )}
-        <p className="mt-6 text-center text-theme-sm text-gray-500 dark:text-gray-400">
-          <Link href="/dashboard" className="hover:text-brand-500">
-            Back to dashboard
-          </Link>
-        </p>
       </div>
     </div>
   );

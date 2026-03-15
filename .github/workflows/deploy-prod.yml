@@ -48,6 +48,6 @@ jobs:
         run: |
           aws ecs update-service \
           --cluster pixeldesk-cluster \
-          --service nextjs-landing-task-service-v53g42xq \
+          --service super-admin-task-service-rowat223 \
           --force-new-deployment \
           --region eu-north-1
