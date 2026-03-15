@@ -1,0 +1,52 @@
+name: Build & Push NextJS Landing to AWS ECR (PROD)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Login to Amazon ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
+            --build-arg NEXT_PUBLIC_DASHBOARD_URL=${{ secrets.NEXT_PUBLIC_DASHBOARD_URL }} \
+            --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
+            -t nextjs-landing:latest .
+
+      # Tag image for ECR
+      - name: Tag Docker image
+        run: |
+          docker tag nextjs-landing:latest 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+
+      # Push to ECR
+      - name: Push Docker image
+        run: |
+          docker push 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+      # Force ECS Service Deployment (NextJS)
+      - name: Force ECS Service Deployment
+        run: |
+          aws ecs update-service \
+          --cluster pixeldesk-cluster \
+          --service nextjs-landing-task-service-v53g42xq \
+          --force-new-deployment \
+          --region eu-north-1
