@@ -1,4 +1,4 @@
-name: Build & Push NextJS Landing to AWS ECR (PROD)
+name: Build & Push NextJS Super Admin to AWS ECR (PROD)
 
 on:
   push:
@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       # Configure AWS credentials
       - name: Configure AWS Credentials
@@ -20,11 +21,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Login to Amazon ECR
+      # Login to AWS ECR
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build Docker image (--progress=plain shows full logs so failures are visible)
+      # Build Docker image
       - name: Build Docker image
         run: |
           docker build \
@@ -35,32 +37,21 @@ jobs:
             --build-arg NEXT_PUBLIC_USE_API_PROXY=true \
             -t pixel-super-admin:latest .
 
-      - name: Tag and push Docker image
-        id: push
-        env:
-          ECR_URI: 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin
-          IMAGE_TAG: ${{ github.sha }}
+      # Tag image for ECR
+      - name: Tag Docker image
         run: |
-          docker tag pixel-super-admin:latest $ECR_URI:latest
-          docker tag pixel-super-admin:latest $ECR_URI:$IMAGE_TAG
-          docker push $ECR_URI:latest
-          docker push $ECR_URI:$IMAGE_TAG
-          echo "image=$ECR_URI:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker tag pixel-super-admin:latest 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
 
-      # Update ECS task definition to use the new image (by SHA tag) so new code always runs
-      - name: Update ECS task definition and deploy
-        env:
-          CLUSTER: pixeldesk-cluster
-          SERVICE: super-admin-task-service-rowat223
-          REGION: eu-north-1
-          NEW_IMAGE: ${{ steps.push.outputs.image }}
+      # Push to ECR
+      - name: Push Docker image
         run: |
-          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER --services $SERVICE --region $REGION --query 'services[0].taskDefinition' --output text)
-          TASK_FAMILY=$(aws ecs describe-task-definition --task-definition $TASK_DEF_ARN --region $REGION --query 'taskDefinition.family' --output text)
-          aws ecs describe-task-definition --task-definition $TASK_DEF_ARN --region $REGION --query 'taskDefinition' > task-def.json
-          # Remove fields that register-task-definition does not accept
-          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' task-def.json > task-def-clean.json
-          # Point container to the image we just pushed (unique tag = no cache)
-          jq --arg img "$NEW_IMAGE" '.containerDefinitions[0].image = $img' task-def-clean.json > task-def-final.json
-          aws ecs register-task-definition --cli-input-json file://task-def-final.json --region $REGION
-          aws ecs update-service --cluster $CLUSTER --service $SERVICE --task-definition $TASK_FAMILY --force-new-deployment --region $REGION
+          docker push 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+
+      # Force ECS Service Deployment
+      - name: Force ECS Service Deployment
+        run: |
+          aws ecs update-service \
+            --cluster pixeldesk-cluster \
+            --service super-admin-task-service-rowat223 \
+            --force-new-deployment \
+            --region eu-north-1
