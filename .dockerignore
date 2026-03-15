@@ -1,0 +1,35 @@
+# Dependencies (we run npm install in the image)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build output (rebuilt in container)
+.next
+out
+dist
+build
+
+# Git and IDE
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Env files (secrets come from build-args in CI)
+.env
+.env.*
+!.env.example
+
+# Misc
+README.md
+*.md
+.DS_Store
+coverage
+.nyc_output
+.vercel
+*.tsbuildinfo

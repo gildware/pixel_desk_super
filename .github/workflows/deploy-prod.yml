@@ -24,10 +24,11 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build Docker image
+      # Build Docker image (--progress=plain shows full logs so failures are visible)
       - name: Build Docker image
         run: |
           docker build \
+            --progress=plain \
             --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
             --build-arg NEXT_PUBLIC_DASHBOARD_URL=${{ secrets.NEXT_PUBLIC_DASHBOARD_URL }} \
             --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
