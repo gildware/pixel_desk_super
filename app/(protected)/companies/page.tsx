@@ -7,9 +7,19 @@ import {
   updateCompany,
   deleteCompany,
 } from "@/src/services/api/company.api";
-import type { Company, UpdateCompanyBody } from "@/src/types/company.types";
+import type { Company, UpdateCompanyBody, LabelValue } from "@/src/types/company.types";
+import { EyeIcon, PencilIcon, TrashBinIcon } from "@/src/icons";
 
 const DEFAULT_LIMIT = 20;
+
+function labelFrom(field: string | LabelValue | undefined): string {
+  if (field == null) return "—";
+  return typeof field === "object" ? field.label : field;
+}
+function valueFrom(field: string | LabelValue | undefined): string {
+  if (field == null) return "";
+  return typeof field === "object" ? field.value : field;
+}
 
 export default function CompaniesPage() {
   const [items, setItems] = useState<Company[]>([]);
@@ -59,11 +69,10 @@ export default function CompaniesPage() {
     setEditCompany(company);
     setEditForm({
       company_name: company.company_name ?? (company as { companyName?: string }).companyName ?? "",
-      industry: company.industry ?? "",
-      primaryUse: company.primaryUse ?? "",
+      industry: valueFrom(company.industry),
+      primaryUse: valueFrom(company.primaryUse),
       timeZone: company.timeZone ?? "",
       status: company.status ?? "",
-      slug: company.slug ?? "",
     });
   };
 
@@ -100,6 +109,7 @@ export default function CompaniesPage() {
 
   const name = (c: Company) =>
     c.company_name ?? (c as { companyName?: string }).companyName ?? c.id;
+  const logoUrl = (c: Company) => c.companyLogo ?? null;
 
   return (
     <div>
@@ -111,7 +121,7 @@ export default function CompaniesPage() {
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <input
               type="text"
-              placeholder="Search name, industry, slug…"
+              placeholder="Search name, industry…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="h-10 rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-gray-500"
@@ -152,10 +162,19 @@ export default function CompaniesPage() {
                       Industry
                     </th>
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                      Primary use
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
                       Status
                     </th>
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
-                      Slug
+                      Projects
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                      Clients
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                      Employees
                     </th>
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
                       Actions
@@ -169,38 +188,78 @@ export default function CompaniesPage() {
                       className="border-b border-gray-100 dark:border-gray-800"
                     >
                       <td className="py-3 text-gray-800 dark:text-white/90">
-                        {name(c)}
+                        <div className="flex items-center gap-3">
+                          {logoUrl(c) ? (
+                            <img
+                              src={logoUrl(c)!}
+                              alt=""
+                              className="h-8 w-8 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-100 text-theme-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                              {name(c).charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {name(c)}
+                        </div>
                       </td>
                       <td className="py-3 text-gray-600 dark:text-gray-400">
-                        {c.industry ?? "—"}
+                        {labelFrom(c.industry)}
                       </td>
                       <td className="py-3 text-gray-600 dark:text-gray-400">
-                        {c.status ?? "—"}
-                      </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
-                        {c.slug ?? "—"}
+                        {labelFrom(c.primaryUse)}
                       </td>
                       <td className="py-3">
-                        <div className="flex flex-wrap gap-2">
+                        {c.status ? (
+                          <span
+                            className={
+                              String(c.status).toLowerCase() === "active"
+                                ? "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                : "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            }
+                          >
+                            {c.status}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                        {c.totalProject ?? c.projects?.length ?? "—"}
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                        {c.totalClient ?? c.clients?.length ?? "—"}
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                        {c.totalEmployee ?? "—"}
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-1">
                           <Link
                             href={`/companies/${c.id}`}
-                            className="text-brand-600 hover:underline dark:text-brand-400"
+                            title="View"
+                            className="inline-flex rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                            aria-label="View company"
                           >
-                            View
+                            <span className="h-5 w-5"><EyeIcon /></span>
                           </Link>
                           <button
                             type="button"
                             onClick={() => openEdit(c)}
-                            className="text-gray-600 hover:underline dark:text-gray-400"
+                            title="Edit"
+                            aria-label="Edit company"
+                            className="inline-flex rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
                           >
-                            Edit
+                            <span className="h-5 w-5"><PencilIcon /></span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteId(c.id)}
-                            className="text-error-600 hover:underline dark:text-error-400"
+                            title="Delete"
+                            aria-label="Delete company"
+                            className="inline-flex rounded-lg p-2 text-error-600 hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-950"
                           >
-                            Delete
+                            <span className="h-5 w-5"><TrashBinIcon /></span>
                           </button>
                         </div>
                       </td>
@@ -308,19 +367,6 @@ export default function CompaniesPage() {
                   value={editForm.status ?? ""}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, status: e.target.value }))
-                  }
-                  className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
-                  Slug
-                </label>
-                <input
-                  type="text"
-                  value={editForm.slug ?? ""}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, slug: e.target.value }))
                   }
                   className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
                 />

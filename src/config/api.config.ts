@@ -25,5 +25,8 @@ export const apiConfig = {
     companies: `${API_BASE}/super-admin/companies`,
     companyById: (id: string) => `${API_BASE}/super-admin/companies/${id}`,
     companyUsage: (id: string) => `${API_BASE}/super-admin/companies/${id}/usage`,
+    companyEmployees: (id: string) => `${API_BASE}/super-admin/companies/${id}/employees`,
+    companyClients: (id: string) => `${API_BASE}/super-admin/companies/${id}/clients`,
+    companyProjects: (id: string) => `${API_BASE}/super-admin/companies/${id}/projects`,
   },
 } as const;

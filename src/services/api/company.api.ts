@@ -6,9 +6,19 @@ import type {
   CompanyUsageResponse,
   UpdateCompanyBody,
   DeleteCompanyResponse,
+  PaginatedResponse,
+  CompanyEmployeeItem,
+  CompanyClientItem,
+  CompanyProjectItem,
 } from "@/src/types/company.types";
 
 export interface ListCompaniesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface ListCompanySubResourceParams {
   page?: number;
   limit?: number;
   search?: string;
@@ -87,7 +97,7 @@ export async function getCompanyUsage(
       storageBytes?: number;
     };
   }>(apiConfig.superAdmin.companyUsage(companyId));
-  const data = (res && "data" in res ? res.data : res) ?? {};
+  const data = ((res && "data" in res) ? res.data : res) ?? {};
   const raw: Record<string, unknown> =
     data && typeof data === "object" && "usage" in data && data.usage != null
       ? (data.usage as Record<string, unknown>)
@@ -133,4 +143,80 @@ export async function deleteCompany(
   return apiClient.delete<DeleteCompanyResponse>(
     apiConfig.superAdmin.companyById(companyId)
   );
+}
+
+function paginatedList<T>(
+  data: unknown,
+  page: number,
+  limit: number
+): PaginatedResponse<T> {
+  const obj = data && typeof data === "object" && "data" in (data as object) ? (data as { data?: unknown }).data : data;
+  const d = obj && typeof obj === "object" ? (obj as Record<string, unknown>) : {};
+  const items = Array.isArray(d.items) ? (d.items as T[]) : [];
+  const total = typeof d.total === "number" ? d.total : items.length;
+  const totalPages = typeof d.totalPages === "number" ? d.totalPages : Math.ceil(total / limit) || 1;
+  return {
+    items,
+    total,
+    page: typeof d.page === "number" ? d.page : page,
+    limit: typeof d.limit === "number" ? d.limit : limit,
+    totalPages,
+  };
+}
+
+/**
+ * List company employees (paginated, optional search)
+ * GET /super-admin/companies/:companyId/employees
+ */
+export async function listCompanyEmployees(
+  companyId: string,
+  params: ListCompanySubResourceParams = {}
+): Promise<PaginatedResponse<CompanyEmployeeItem>> {
+  const { page = 1, limit = 20, search } = params;
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(Math.min(limit, 100)));
+  if (search?.trim()) searchParams.set("search", search.trim());
+  const url = `${apiConfig.superAdmin.companyEmployees(companyId)}?${searchParams.toString()}`;
+  const res = await apiClient.get<{ data?: unknown } | unknown>(url);
+  const data = res && typeof res === "object" && "data" in res ? (res as { data?: unknown }).data : res;
+  return paginatedList<CompanyEmployeeItem>(data ?? res, page, limit);
+}
+
+/**
+ * List company clients (paginated, optional search)
+ * GET /super-admin/companies/:companyId/clients
+ */
+export async function listCompanyClients(
+  companyId: string,
+  params: ListCompanySubResourceParams = {}
+): Promise<PaginatedResponse<CompanyClientItem>> {
+  const { page = 1, limit = 20, search } = params;
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(Math.min(limit, 100)));
+  if (search?.trim()) searchParams.set("search", search.trim());
+  const url = `${apiConfig.superAdmin.companyClients(companyId)}?${searchParams.toString()}`;
+  const res = await apiClient.get<{ data?: unknown } | unknown>(url);
+  const data = res && typeof res === "object" && "data" in res ? (res as { data?: unknown }).data : res;
+  return paginatedList<CompanyClientItem>(data ?? res, page, limit);
+}
+
+/**
+ * List company projects (paginated, optional search)
+ * GET /super-admin/companies/:companyId/projects
+ */
+export async function listCompanyProjects(
+  companyId: string,
+  params: ListCompanySubResourceParams = {}
+): Promise<PaginatedResponse<CompanyProjectItem>> {
+  const { page = 1, limit = 20, search } = params;
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(Math.min(limit, 100)));
+  if (search?.trim()) searchParams.set("search", search.trim());
+  const url = `${apiConfig.superAdmin.companyProjects(companyId)}?${searchParams.toString()}`;
+  const res = await apiClient.get<{ data?: unknown } | unknown>(url);
+  const data = res && typeof res === "object" && "data" in res ? (res as { data?: unknown }).data : res;
+  return paginatedList<CompanyProjectItem>(data ?? res, page, limit);
 }
