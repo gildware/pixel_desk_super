@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { requestOtp, verifyOtp, logout, getSession } from "@/src/services/api/auth.api";
 import { useSession } from "@/src/context/SessionContext";
 import LoginForm from "@/src/components/auth/LoginForm";
 import OtpVerification from "@/src/components/auth/OtpVerification";
-
-const REDIRECT_ATTEMPT_KEY = "auth-redirect-to-dashboard";
 
 export default function AuthBase() {
   const { session, loading: sessionLoading, refetch } = useSession();
@@ -15,8 +13,6 @@ export default function AuthBase() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [redirectBlocked, setRedirectBlocked] = useState(false);
-  const hasRedirected = useRef(false);
 
   // Only global super admins can access dashboard; others are logged out and stay on login
   useEffect(() => {
@@ -25,22 +21,6 @@ export default function AuthBase() {
       logout()
         .then(() => refetch())
         .catch(() => refetch());
-      return;
-    }
-    if (session?.user && session.user.isGlobalSuperAdmin === true) {
-      // Loop breaker: if we were just sent back from dashboard (server had no session), don't redirect again
-      if (typeof window !== "undefined" && sessionStorage.getItem(REDIRECT_ATTEMPT_KEY) === "1") {
-        sessionStorage.removeItem(REDIRECT_ATTEMPT_KEY);
-        setRedirectBlocked(true);
-        return;
-      }
-      // Set flags synchronously first so Strict Mode / double effect run doesn't trigger redirect twice
-      if (hasRedirected.current) return;
-      hasRedirected.current = true;
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(REDIRECT_ATTEMPT_KEY, "1");
-      }
-      window.location.replace("/dashboard");
     }
   }, [session?.user, session?.user?.isGlobalSuperAdmin, sessionLoading, refetch]);
 
@@ -124,30 +104,21 @@ export default function AuthBase() {
     );
   }
 
-  // Already logged in as global super admin: redirect to dashboard (handled in useEffect), or show message if loop was detected
+  // Already logged in as global super admin: show "Go to dashboard" (no auto-redirect to avoid loop when app and API use different domains)
   if (session?.user && session.user.isGlobalSuperAdmin === true) {
-    if (redirectBlocked) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="w-full max-w-md px-4 text-center">
-            <p className="text-theme-sm text-gray-600 dark:text-gray-300 mb-4">
-              Session is valid but the dashboard could not be reached. This can happen if the app and API use different domains.
-            </p>
-            <Link
-              href="/dashboard"
-              className="text-theme-sm font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400"
-            >
-              Try opening dashboard →
-            </Link>
-          </div>
-        </div>
-      );
-    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-          Redirecting to dashboard…
-        </p>
+        <div className="w-full max-w-md px-4 text-center">
+          <p className="text-theme-sm text-gray-600 dark:text-gray-300 mb-4">
+            You’re signed in.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-block rounded-md bg-brand-600 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-500 dark:bg-brand-500 dark:hover:bg-brand-400"
+          >
+            Go to dashboard
+          </Link>
+        </div>
       </div>
     );
   }

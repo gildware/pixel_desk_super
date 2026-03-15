@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { apiConfig } from "@/src/config/api.config";
 import type { Session, SessionUser } from "@/src/types/auth.types";
 
@@ -9,12 +9,22 @@ function getCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): stri
     .join("; ");
 }
 
+async function resolveApiUrl(relativeOrAbsolute: string): Promise<string> {
+  if (relativeOrAbsolute.startsWith("http")) return relativeOrAbsolute;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (h.get("x-forwarded-ssl") === "on" ? "https" : "http");
+  const origin = host ? `${proto}://${host}` : "";
+  return origin ? `${origin}${relativeOrAbsolute}` : relativeOrAbsolute;
+}
+
 export async function getServerSession(): Promise<Session | null> {
   const cookieStore = await cookies();
   const cookieHeader = getCookieHeader(cookieStore);
+  const sessionUrl = await resolveApiUrl(apiConfig.auth.session);
 
   try {
-    const res = await fetch(apiConfig.auth.session, {
+    const res = await fetch(sessionUrl, {
       method: "GET",
       headers: { Cookie: cookieHeader },
       cache: "no-store",
@@ -24,12 +34,16 @@ export async function getServerSession(): Promise<Session | null> {
 
     const data = await res.json().catch(() => null) as {
       status?: string;
-      data?: { user?: SessionUser };
+      data?: { user?: SessionUser; isGlobalSuperAdmin?: boolean };
       user?: SessionUser;
     } | null;
-    const user = data?.data?.user ?? data?.user;
-    if (user?.id && user?.email) return { user };
-    return null;
+    const rawUser = data?.data?.user ?? data?.user;
+    if (!rawUser?.id || !rawUser?.email) return null;
+    const user: SessionUser = {
+      ...rawUser,
+      isGlobalSuperAdmin: rawUser.isGlobalSuperAdmin ?? data?.data?.isGlobalSuperAdmin ?? false,
+    };
+    return { user };
   } catch {
     return null;
   }
@@ -39,8 +53,9 @@ export async function getServerSession(): Promise<Session | null> {
 export async function serverLogout(): Promise<void> {
   const cookieStore = await cookies();
   const cookieHeader = getCookieHeader(cookieStore);
+  const logoutUrl = await resolveApiUrl(apiConfig.auth.logout);
   try {
-    await fetch(apiConfig.auth.logout, {
+    await fetch(logoutUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

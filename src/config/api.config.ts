@@ -1,7 +1,14 @@
-const API_BASE =
+const RAW_API_URL =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
     : "";
+
+const USE_PROXY =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_USE_API_PROXY === "true" &&
+  RAW_API_URL.startsWith("http");
+
+const API_BASE = USE_PROXY ? "/api/proxy" : RAW_API_URL;
 
 export const apiConfig = {
   baseUrl: API_BASE,

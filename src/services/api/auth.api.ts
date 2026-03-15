@@ -31,12 +31,16 @@ export async function getSession(): Promise<Session | null> {
   try {
     const data = await apiClient.get<{
       status?: string;
-      data?: { user?: Session["user"] };
+      data?: { user?: Session["user"]; isGlobalSuperAdmin?: boolean };
       user?: Session["user"];
     }>(apiConfig.auth.session);
-    const user = data?.data?.user ?? data?.user;
-    if (user?.id && user?.email) return { user };
-    return null;
+    const rawUser = data?.data?.user ?? data?.user;
+    if (!rawUser?.id || !rawUser?.email) return null;
+    const user: Session["user"] = {
+      ...rawUser,
+      isGlobalSuperAdmin: rawUser.isGlobalSuperAdmin ?? data?.data?.isGlobalSuperAdmin ?? false,
+    };
+    return { user };
   } catch {
     return null;
   }
