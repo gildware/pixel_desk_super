@@ -1,4 +1,4 @@
-name: Build & Push NextJS Super Admin to AWS ECR (PROD)
+name: Build & Push NextJS Landing to AWS ECR (PROD)
 
 on:
   push:
@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       # Configure AWS credentials
       - name: Configure AWS Credentials
@@ -21,20 +20,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Login to AWS ECR
+      # Login to Amazon ECR
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       # Build Docker image
       - name: Build Docker image
         run: |
           docker build \
-            --progress=plain \
             --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
             --build-arg NEXT_PUBLIC_DASHBOARD_URL=${{ secrets.NEXT_PUBLIC_DASHBOARD_URL }} \
             --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
-            --build-arg NEXT_PUBLIC_USE_API_PROXY=true \
             -t pixel-super-admin:latest .
 
       # Tag image for ECR
@@ -46,12 +42,69 @@ jobs:
       - name: Push Docker image
         run: |
           docker push 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
-
-      # Force ECS Service Deployment
+      # Force ECS Service Deployment (NextJS)
       - name: Force ECS Service Deployment
         run: |
           aws ecs update-service \
-            --cluster pixeldesk-cluster \
-            --service super-admin-task-service-rowat223 \
-            --force-new-deployment \
-            --region eu-north-1
+          --cluster pixeldesk-cluster \
+         --service super-admin-task-service-rowat223 \
+          --force-new-deployment \
+          --region eu-north-1
+
+# name: Build & Push NextJS Super Admin to AWS ECR (PROD)
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   build-and-push:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v3
+
+#       # Configure AWS credentials
+#       - name: Configure AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+
+#       # Login to AWS ECR
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v2
+
+#       # Build Docker image
+#       - name: Build Docker image
+#         run: |
+#           docker build \
+#             --progress=plain \
+#             --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
+#             --build-arg NEXT_PUBLIC_DASHBOARD_URL=${{ secrets.NEXT_PUBLIC_DASHBOARD_URL }} \
+#             --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
+#             --build-arg NEXT_PUBLIC_USE_API_PROXY=true \
+#             -t pixel-super-admin:latest .
+
+#       # Tag image for ECR
+#       - name: Tag Docker image
+#         run: |
+#           docker tag pixel-super-admin:latest 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+
+#       # Push to ECR
+#       - name: Push Docker image
+#         run: |
+#           docker push 672627895299.dkr.ecr.eu-north-1.amazonaws.com/pixel-super-admin:latest
+
+#       # Force ECS Service Deployment
+#       - name: Force ECS Service Deployment
+#         run: |
+#           aws ecs update-service \
+#             --cluster pixeldesk-cluster \
+#             --service super-admin-task-service-rowat223 \
+#             --force-new-deployment \
+#             --region eu-north-1
