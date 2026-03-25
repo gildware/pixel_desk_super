@@ -13,6 +13,8 @@ export interface SuperAdminUserItem {
   lastName: string | null;
   profilePicture: string | null;
   companies: UserCompanyRef[];
+  lastActivityAt?: string | null;
+  inactivityState?: 'active' | 'warning' | 'delete_due' | 'unknown';
 }
 
 /** Paginated super-admin users response */

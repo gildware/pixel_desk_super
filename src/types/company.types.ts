@@ -21,6 +21,8 @@ export interface Company {
   companyLogo?: string | null;
   timeZone?: string;
   status?: string;
+  lastActivityAt?: string | null;
+  inactivityState?: 'active' | 'warning' | 'delete_due' | 'unknown';
   totalProject?: number;
   totalClient?: number;
   totalEmployee?: number;

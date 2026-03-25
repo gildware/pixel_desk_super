@@ -31,5 +31,8 @@ export const apiConfig = {
     companyEmployees: (id: string) => `${API_BASE}/super-admin/companies/${id}/employees`,
     companyClients: (id: string) => `${API_BASE}/super-admin/companies/${id}/clients`,
     companyProjects: (id: string) => `${API_BASE}/super-admin/companies/${id}/projects`,
+    inactivitySettings: `${API_BASE}/super-admin/settings/inactivity`,
+    companyInactivityManualEmail: (id: string) =>
+      `${API_BASE}/super-admin/companies/${id}/inactivity/manual-email`,
   },
 } as const;

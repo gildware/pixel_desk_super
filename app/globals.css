@@ -183,7 +183,8 @@
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50;
+    /* Prevent horizontal page scrolling; horizontal scrolling should be limited to table containers. */
+    @apply relative font-normal font-outfit z-1 bg-gray-50 overflow-x-hidden;
   }
 }
 

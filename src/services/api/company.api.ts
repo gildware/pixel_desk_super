@@ -145,6 +145,36 @@ export async function deleteCompany(
   );
 }
 
+export type SendCompanyInactivityManualEmailResponse = {
+  inactivityState: 'active' | 'warning' | 'delete_due' | 'unknown';
+  sent: boolean;
+  action: 'warning_email' | 'delete_due_email_delete' | 'no_action';
+  deleted: boolean;
+};
+
+/**
+ * Super Admin manual inactivity email action.
+ * POST /super-admin/companies/:companyId/inactivity/manual-email
+ */
+export async function sendCompanyInactivityManualEmail(
+  companyId: string,
+): Promise<SendCompanyInactivityManualEmailResponse> {
+  const res = await apiClient.post<
+    SendCompanyInactivityManualEmailResponse
+  >(apiConfig.superAdmin.companyInactivityManualEmail(companyId), {});
+
+  if (
+    res &&
+    typeof res === 'object' &&
+    'data' in (res as any) &&
+    (res as any).data
+  ) {
+    return (res as any).data as SendCompanyInactivityManualEmailResponse;
+  }
+
+  return res as SendCompanyInactivityManualEmailResponse;
+}
+
 function paginatedList<T>(
   data: unknown,
   page: number,

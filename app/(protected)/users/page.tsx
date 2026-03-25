@@ -37,6 +37,27 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
+  const formatLastActivity = (iso?: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    });
+  };
+
+  const inactivityBadgeClass = (state?: SuperAdminUserItem['inactivityState']) => {
+    if (state === 'delete_due') {
+      return 'inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300';
+    }
+    if (state === 'warning') {
+      return 'inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+    }
+    return '';
+  };
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -145,6 +166,9 @@ export default function UsersPage() {
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
                       Companies
                     </th>
+                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                      Last activity
+                    </th>
                     <th className="pb-3 w-28 text-right font-medium text-gray-700 dark:text-gray-300">
                       Actions
                     </th>
@@ -188,6 +212,20 @@ export default function UsersPage() {
                         ) : (
                           "—"
                         )}
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <span>{formatLastActivity(u.lastActivityAt)}</span>
+                          {u.inactivityState &&
+                            u.inactivityState !== 'active' &&
+                            u.inactivityState !== 'unknown' && (
+                              <span className={inactivityBadgeClass(u.inactivityState)}>
+                                {u.inactivityState === 'warning'
+                                  ? 'Inactive'
+                                  : 'Delete due'}
+                              </span>
+                            )}
+                        </div>
                       </td>
                       <td className="py-3 text-right">
                         {currentUserId === u.id ? (

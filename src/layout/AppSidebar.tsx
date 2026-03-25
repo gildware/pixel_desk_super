@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/src/context/SidebarContext";
-import { GridIcon, TableIcon, UserIcon } from "@/src/icons/index";
+import { GridIcon, TableIcon, UserIcon, TimeIcon } from "@/src/icons/index";
 
 type NavItem = {
   name: string;
@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { icon: <GridIcon />, name: "Dashboard", path: "/dashboard" },
   { icon: <TableIcon />, name: "Companies", path: "/companies" },
   { icon: <UserIcon />, name: "Users", path: "/users" },
+  { icon: <TimeIcon />, name: "Settings", path: "/settings" },
 ];
 
 const AppSidebar: React.FC = () => {

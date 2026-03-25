@@ -29,9 +29,34 @@ function adminDisplayName(
 ): string {
   if (!createdBy) return "—";
   const parts = [createdBy.firstName, createdBy.lastName]
-    .filter((p) => typeof p === "string" && p.trim().length > 0)
+    .filter(
+      (p): p is string => typeof p === "string" && p.trim().length > 0,
+    )
     .map((p) => p.trim());
   return parts.length > 0 ? parts.join(" ") : "—";
+}
+
+function formatLastActivity(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
+}
+
+function inactivityBadgeClass(
+  state?: Company["inactivityState"],
+): string {
+  if (state === 'delete_due') {
+    return 'inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300';
+  }
+  if (state === 'warning') {
+    return 'inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+  }
+  return '';
 }
 
 export default function CompaniesPage() {
@@ -170,35 +195,41 @@ export default function CompaniesPage() {
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-theme-sm">
+            <div
+              className="overflow-x-auto"
+              style={{ overscrollBehaviorX: "contain" }}
+            >
+              <table className="min-w-max w-full border-separate border-spacing-x-4 border-spacing-y-0 text-left text-theme-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Name
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Admin
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Industry
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Primary use
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Status
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      Last activity
+                    </th>
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Projects
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Clients
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Employees
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Actions
                     </th>
                   </tr>
@@ -209,12 +240,17 @@ export default function CompaniesPage() {
                       key={c.id}
                       className="border-b border-gray-100 dark:border-gray-800"
                     >
-                      <td className="py-3 text-gray-800 dark:text-white/90">
-                        <div className="flex items-center gap-3">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-800 dark:text-white/90">
+                        <Link
+                          href={`/companies/${c.id}`}
+                          title="View company"
+                          aria-label={`View company ${name(c)}`}
+                          className="inline-flex items-center gap-3 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/50 dark:hover:bg-gray-800 dark:hover:text-white"
+                        >
                           {logoUrl(c) ? (
                             <img
                               src={logoUrl(c)!}
-                              alt=""
+                              alt={`${name(c)} logo`}
                               className="h-8 w-8 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
                             />
                           ) : (
@@ -222,19 +258,19 @@ export default function CompaniesPage() {
                               {name(c).charAt(0).toUpperCase()}
                             </div>
                           )}
-                          {name(c)}
-                        </div>
+                          <span className="font-medium">{name(c)}</span>
+                        </Link>
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {adminDisplayName(c.createdBy)}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {labelFrom(c.industry)}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {labelFrom(c.primaryUse)}
                       </td>
-                      <td className="py-3">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         {c.status ? (
                           <span
                             className={
@@ -249,16 +285,30 @@ export default function CompaniesPage() {
                           <span className="text-gray-500 dark:text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <span>{formatLastActivity(c.lastActivityAt)}</span>
+                          {c.inactivityState &&
+                            c.inactivityState !== 'active' &&
+                            c.inactivityState !== 'unknown' && (
+                              <span className={inactivityBadgeClass(c.inactivityState)}>
+                                {c.inactivityState === 'warning'
+                                  ? 'Inactive'
+                                  : 'Delete due'}
+                              </span>
+                            )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {c.totalProject ?? c.projects?.length ?? "—"}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {c.totalClient ?? c.clients?.length ?? "—"}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {c.totalEmployee ?? "—"}
                       </td>
-                      <td className="py-3">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <Link
                             href={`/companies/${c.id}`}

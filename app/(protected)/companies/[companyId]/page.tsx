@@ -7,6 +7,7 @@ import {
   getCompanyUsage,
   updateCompany,
   deleteCompany,
+  sendCompanyInactivityManualEmail,
   listCompanyEmployees,
   listCompanyClients,
   listCompanyProjects,
@@ -49,6 +50,29 @@ function companyName(c: Company): string {
   );
 }
 
+function formatLastActivity(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
+function inactivityBadgeClass(
+  state?: Company["inactivityState"],
+): string {
+  if (state === "delete_due") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300";
+  }
+  if (state === "warning") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+  }
+  return "";
+}
+
 export default function CompanyDetailPage({
   params,
 }: {
@@ -67,6 +91,18 @@ export default function CompanyDetailPage({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  type InactivityAction = "warning" | "delete_due";
+  const [showInactivityConfirm, setShowInactivityConfirm] = useState(false);
+  const [inactivityAction, setInactivityAction] =
+    useState<InactivityAction | null>(null);
+  const [inactivityError, setInactivityError] = useState<string | null>(null);
+  const [inactivitySentMessage, setInactivitySentMessage] = useState<
+    string | null
+  >(null);
+  const [lastInactivityEmailSentFor, setLastInactivityEmailSentFor] =
+    useState<InactivityAction | null>(null);
+  const [sendingInactivity, setSendingInactivity] = useState(false);
 
   type TabId = "projects" | "employees" | "clients";
   const [activeTab, setActiveTab] = useState<TabId>("projects");
@@ -222,6 +258,54 @@ export default function CompanyDetailPage({
     }
   };
 
+  const handleSendInactivityManualEmail = async () => {
+    if (!companyId || !inactivityAction) return;
+    setSendingInactivity(true);
+    setInactivityError(null);
+    try {
+      const result = await sendCompanyInactivityManualEmail(companyId);
+      if (result.deleted) {
+        window.location.href = "/companies";
+        return;
+      }
+
+      if (result.action === "warning_email" && result.sent) {
+        setInactivitySentMessage("Reminder email has been sent.");
+        setLastInactivityEmailSentFor("warning");
+      } else if (result.action === "delete_due_email_delete" && result.sent) {
+        setInactivitySentMessage("Deletion email has been sent.");
+        setLastInactivityEmailSentFor("delete_due");
+      } else if (result.action === "no_action" && !result.sent) {
+        setInactivitySentMessage("No email was sent (not inactive).");
+      } else {
+        setInactivitySentMessage("Request completed.");
+      }
+
+      // Refresh view data after sending.
+      const [c, u] = await Promise.all([
+        getCompany(companyId),
+        getCompanyUsage(companyId),
+      ]);
+      setCompany(c);
+      setUsage(u);
+      setEditForm({
+        company_name: c.company_name ?? (c as { companyName?: string }).companyName ?? "",
+        industry: valueFrom(c.industry),
+        primaryUse: valueFrom(c.primaryUse),
+        timeZone: c.timeZone ?? "",
+        status: c.status ?? "",
+      });
+    } catch (err) {
+      setInactivityError(
+        err instanceof Error
+          ? err.message
+          : "Failed to send inactivity email"
+      );
+    } finally {
+      setSendingInactivity(false);
+    }
+  };
+
   const logoUrl = company?.companyLogo ?? undefined;
 
   return (
@@ -293,6 +377,32 @@ export default function CompanyDetailPage({
                 >
                   Delete
                 </button>
+                {(company.inactivityState === "warning" ||
+                  company.inactivityState === "delete_due") && (
+                  <button
+                    type="button"
+                    disabled={sendingInactivity}
+                    onClick={() => {
+                      setInactivityAction(
+                        company.inactivityState === "delete_due"
+                          ? "delete_due"
+                          : "warning",
+                      );
+                      setInactivityError(null);
+                      setInactivitySentMessage(null);
+                      setShowInactivityConfirm(true);
+                    }}
+                    className="rounded-lg border border-brand-200 px-4 py-2 text-theme-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-800 dark:text-brand-400 dark:hover:bg-brand-950 disabled:opacity-50"
+                  >
+                    {company.inactivityState === "warning"
+                      ? lastInactivityEmailSentFor === "warning"
+                        ? "Resend reminder email"
+                        : "Send reminder email"
+                      : lastInactivityEmailSentFor === "delete_due"
+                        ? "Resend deletion email"
+                        : "Send deletion email"}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -360,6 +470,27 @@ export default function CompanyDetailPage({
                       ? new Date(company.updatedAt).toLocaleString()
                       : "—"}
                   </p>
+                </div>
+                <div>
+                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                    Last activity
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-gray-800 dark:text-white/90">
+                      {formatLastActivity(company.lastActivityAt ?? null)}
+                    </p>
+                    {company.inactivityState &&
+                      company.inactivityState !== "active" &&
+                      company.inactivityState !== "unknown" && (
+                        <span
+                          className={inactivityBadgeClass(company.inactivityState)}
+                        >
+                          {company.inactivityState === "warning"
+                            ? "Inactive"
+                            : "Delete due"}
+                        </span>
+                      )}
+                  </div>
                 </div>
                 <div>
                   <p className="text-theme-xs text-gray-500 dark:text-gray-400">
@@ -473,7 +604,7 @@ export default function CompanyDetailPage({
                   ) : activeTab === "projects" ? (
                     <>
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-theme-sm">
+                        <table className="min-w-max w-full border-separate border-spacing-x-4 border-spacing-y-0 text-left text-theme-sm">
                           <thead>
                             <tr className="border-b border-gray-200 dark:border-gray-700">
                               <th className="p-3 font-medium text-gray-700 dark:text-gray-300">Name</th>
@@ -539,7 +670,7 @@ export default function CompanyDetailPage({
                   ) : activeTab === "employees" ? (
                     <>
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-theme-sm">
+                        <table className="min-w-max w-full border-separate border-spacing-x-4 border-spacing-y-0 text-left text-theme-sm">
                           <thead>
                             <tr className="border-b border-gray-200 dark:border-gray-700">
                               <th className="p-3 font-medium text-gray-700 dark:text-gray-300">Name</th>
@@ -607,7 +738,7 @@ export default function CompanyDetailPage({
                   ) : (
                     <>
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-theme-sm">
+                        <table className="min-w-max w-full border-separate border-spacing-x-4 border-spacing-y-0 text-left text-theme-sm">
                           <thead>
                             <tr className="border-b border-gray-200 dark:border-gray-700">
                               <th className="p-3 font-medium text-gray-700 dark:text-gray-300">Name / Company</th>
@@ -786,6 +917,77 @@ export default function CompanyDetailPage({
               >
                 {deleteError}
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Inactivity email confirm */}
+      {showInactivityConfirm && company && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+              {company.inactivityState === "delete_due"
+                ? "Send deletion email and delete this company now?"
+                : "Send reminder email to this company admins now?"}
+            </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              Last activity: {formatLastActivity(company.lastActivityAt ?? null)}
+            </p>
+
+            {inactivityError && (
+              <p
+                className="mt-3 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+                role="alert"
+              >
+                {inactivityError}
+              </p>
+            )}
+
+            {inactivitySentMessage && (
+              <p className="mt-3 mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-theme-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {inactivitySentMessage}
+              </p>
+            )}
+
+            {inactivitySentMessage ? (
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInactivityConfirm(false);
+                    setInactivityAction(null);
+                    setInactivityError(null);
+                    setInactivitySentMessage(null);
+                  }}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInactivityConfirm(false);
+                    setInactivityAction(null);
+                    setInactivityError(null);
+                    setInactivitySentMessage(null);
+                  }}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendInactivityManualEmail}
+                  disabled={sendingInactivity}
+                  className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                >
+                  {sendingInactivity ? "Sending…" : "Confirm"}
+                </button>
+              </div>
             )}
           </div>
         </div>
