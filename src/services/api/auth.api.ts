@@ -14,11 +14,13 @@ export async function requestOtp(email: string): Promise<RequestOtpResponse> {
 
 export async function verifyOtp(
   email: string,
-  otp: string
+  otp: string,
+  rememberMe: boolean
 ): Promise<VerifyOtpResponse> {
   return apiClient.post<VerifyOtpResponse>(apiConfig.auth.verifyOtp, {
     email,
     otp,
+    rememberMe,
   });
 }
 

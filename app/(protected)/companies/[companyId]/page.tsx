@@ -30,6 +30,9 @@ function valueFrom(field: string | LabelValue | undefined): string {
   return typeof field === "object" ? field.value : field;
 }
 
+/** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
+const DELETE_CONFIRM_PHRASE = "DELETE";
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -61,6 +64,8 @@ export default function CompanyDetailPage({
   const [showEdit, setShowEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   type TabId = "projects" | "employees" | "clients";
@@ -204,11 +209,14 @@ export default function CompanyDetailPage({
   const handleDelete = async () => {
     if (!companyId) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       await deleteCompany(companyId);
       window.location.href = "/companies";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete company");
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete company"
+      );
     } finally {
       setDeleting(false);
     }
@@ -276,7 +284,11 @@ export default function CompanyDetailPage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => {
+                    setDeleteConfirmText("");
+                    setDeleteError(null);
+                    setShowDeleteConfirm(true);
+                  }}
                   className="rounded-lg border border-error-200 px-4 py-2 text-theme-sm font-medium text-error-600 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-950"
                 >
                   Delete
@@ -722,14 +734,34 @@ export default function CompanyDetailPage({
       {/* Delete confirm */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-            <p className="mb-4 text-theme-sm text-gray-700 dark:text-gray-300">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
               Delete this company and all related data? This cannot be undone.
             </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              User accounts that belong to other companies are not removed; only their link to this company is deleted.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                Type {DELETE_CONFIRM_PHRASE} to confirm
+              </span>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                placeholder={DELETE_CONFIRM_PHRASE}
+              />
+            </label>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmText("");
+                  setDeleteError(null);
+                }}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
               >
                 Cancel
@@ -737,12 +769,24 @@ export default function CompanyDetailPage({
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={deleting}
+                disabled={
+                  deleting ||
+                  deleteConfirmText.trim().toUpperCase() !==
+                    DELETE_CONFIRM_PHRASE
+                }
                 className="rounded-lg bg-error-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-error-600 disabled:opacity-50"
               >
                 {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
+            {deleteError && (
+              <p
+                className="mt-3 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
           </div>
         </div>
       )}

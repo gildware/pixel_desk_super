@@ -12,6 +12,9 @@ import { EyeIcon, PencilIcon, TrashBinIcon } from "@/src/icons";
 
 const DEFAULT_LIMIT = 20;
 
+/** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
+const DELETE_CONFIRM_PHRASE = "DELETE";
+
 function labelFrom(field: string | LabelValue | undefined): string {
   if (field == null) return "—";
   return typeof field === "object" ? field.label : field;
@@ -19,6 +22,16 @@ function labelFrom(field: string | LabelValue | undefined): string {
 function valueFrom(field: string | LabelValue | undefined): string {
   if (field == null) return "";
   return typeof field === "object" ? field.value : field;
+}
+
+function adminDisplayName(
+  createdBy: Company["createdBy"]
+): string {
+  if (!createdBy) return "—";
+  const parts = [createdBy.firstName, createdBy.lastName]
+    .filter((p) => typeof p === "string" && p.trim().length > 0)
+    .map((p) => p.trim());
+  return parts.length > 0 ? parts.join(" ") : "—";
 }
 
 export default function CompaniesPage() {
@@ -37,6 +50,8 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchList = useCallback(async () => {
@@ -95,13 +110,17 @@ export default function CompaniesPage() {
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       await deleteCompany(deleteId);
       setItems((prev) => prev.filter((c) => c.id !== deleteId));
       setTotal((t) => Math.max(0, t - 1));
       setDeleteId(null);
+      setDeleteConfirmText("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete company");
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete company"
+      );
     } finally {
       setDeleting(false);
     }
@@ -159,6 +178,9 @@ export default function CompaniesPage() {
                       Name
                     </th>
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                      Admin
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
                       Industry
                     </th>
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
@@ -202,6 +224,9 @@ export default function CompaniesPage() {
                           )}
                           {name(c)}
                         </div>
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                        {adminDisplayName(c.createdBy)}
                       </td>
                       <td className="py-3 text-gray-600 dark:text-gray-400">
                         {labelFrom(c.industry)}
@@ -254,7 +279,11 @@ export default function CompaniesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeleteId(c.id)}
+                            onClick={() => {
+                              setDeleteId(c.id);
+                              setDeleteConfirmText("");
+                              setDeleteError(null);
+                            }}
                             title="Delete"
                             aria-label="Delete company"
                             className="inline-flex rounded-lg p-2 text-error-600 hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-950"
@@ -396,14 +425,34 @@ export default function CompaniesPage() {
       {/* Delete confirm */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-            <p className="mb-4 text-theme-sm text-gray-700 dark:text-gray-300">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
               Delete this company and all related data? This cannot be undone.
             </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              User accounts that belong to other companies are not removed; only their link to this company is deleted.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                Type {DELETE_CONFIRM_PHRASE} to confirm
+              </span>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                placeholder={DELETE_CONFIRM_PHRASE}
+              />
+            </label>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDeleteId(null)}
+                onClick={() => {
+                  setDeleteId(null);
+                  setDeleteConfirmText("");
+                  setDeleteError(null);
+                }}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
               >
                 Cancel
@@ -411,12 +460,24 @@ export default function CompaniesPage() {
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={deleting}
+                disabled={
+                  deleting ||
+                  deleteConfirmText.trim().toUpperCase() !==
+                    DELETE_CONFIRM_PHRASE
+                }
                 className="rounded-lg bg-error-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-error-600 disabled:opacity-50"
               >
                 {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
+            {deleteError && (
+              <p
+                className="mt-3 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
           </div>
         </div>
       )}

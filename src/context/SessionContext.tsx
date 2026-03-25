@@ -29,8 +29,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const s = await getSession();
       setSession(s);
-    } catch {
-      setSession(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      const looksNetwork =
+        e instanceof TypeError ||
+        /failed to fetch|network error|load failed/i.test(msg);
+      if (!looksNetwork) {
+        setSession(null);
+      }
     } finally {
       setLoading(false);
     }

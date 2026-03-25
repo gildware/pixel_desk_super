@@ -57,3 +57,11 @@ export async function listSuperAdminUsers(
     totalPages,
   };
 }
+
+/**
+ * Soft-delete a user (super admin). Fails if the user still belongs to any company.
+ * DELETE /super-admin/users/:userId
+ */
+export async function deleteSuperAdminUser(userId: string): Promise<void> {
+  await apiClient.delete(apiConfig.superAdmin.userById(userId));
+}

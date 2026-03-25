@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { listSuperAdminUsers } from "@/src/services/api/user.api";
+import {
+  listSuperAdminUsers,
+  deleteSuperAdminUser,
+} from "@/src/services/api/user.api";
 import type { SuperAdminUserItem } from "@/src/types/user.types";
+import { useSession } from "@/src/context/SessionContext";
 
 const DEFAULT_LIMIT = 20;
+
+/** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
+const DELETE_CONFIRM_PHRASE = "DELETE";
 
 function displayName(u: SuperAdminUserItem): string {
   const parts = [u.firstName, u.lastName].filter(Boolean);
@@ -12,6 +19,8 @@ function displayName(u: SuperAdminUserItem): string {
 }
 
 export default function UsersPage() {
+  const { session } = useSession();
+  const currentUserId = session?.user?.id;
   const [items, setItems] = useState<SuperAdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -21,6 +30,12 @@ export default function UsersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SuperAdminUserItem | null>(
+    null
+  );
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -52,6 +67,29 @@ export default function UsersPage() {
     e.preventDefault();
     setSearch(searchInput.trim());
     setPage(1);
+  };
+
+  const closeDeleteModal = () => {
+    setPendingDelete(null);
+    setDeleteConfirmText("");
+    setDeleteModalError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteModalError(null);
+    try {
+      await deleteSuperAdminUser(pendingDelete.id);
+      closeDeleteModal();
+      await fetchList();
+    } catch (err) {
+      setDeleteModalError(
+        err instanceof Error ? err.message : "Failed to delete user"
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -107,6 +145,9 @@ export default function UsersPage() {
                     <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
                       Companies
                     </th>
+                    <th className="pb-3 w-28 text-right font-medium text-gray-700 dark:text-gray-300">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -148,6 +189,25 @@ export default function UsersPage() {
                           "—"
                         )}
                       </td>
+                      <td className="py-3 text-right">
+                        {currentUserId === u.id ? (
+                          <span className="text-theme-xs text-gray-400 dark:text-gray-500">
+                            Current user
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPendingDelete(u);
+                              setDeleteConfirmText("");
+                              setDeleteModalError(null);
+                            }}
+                            className="text-theme-sm font-medium text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -182,6 +242,67 @@ export default function UsersPage() {
           </>
         )}
       </div>
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+              Delete{" "}
+              <span className="font-semibold">
+                {displayName(pendingDelete)}
+              </span>{" "}
+              ({pendingDelete.email})? This cannot be undone.
+            </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              The account is only removed if this user is not linked to any
+              company. If the server rejects the delete, remove them from each
+              company first.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                Type {DELETE_CONFIRM_PHRASE} to confirm
+              </span>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                placeholder={DELETE_CONFIRM_PHRASE}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={
+                  deleting ||
+                  deleteConfirmText.trim().toUpperCase() !==
+                    DELETE_CONFIRM_PHRASE
+                }
+                className="rounded-lg bg-error-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-error-600 disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+            {deleteModalError && (
+              <div
+                role="alert"
+                className="mt-4 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+              >
+                {deleteModalError}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

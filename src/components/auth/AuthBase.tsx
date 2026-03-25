@@ -10,6 +10,7 @@ import OtpVerification from "@/src/components/auth/OtpVerification";
 export default function AuthBase() {
   const { session, loading: sessionLoading, refetch } = useSession();
   const [email, setEmail] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -24,12 +25,13 @@ export default function AuthBase() {
     }
   }, [session?.user, session?.user?.isGlobalSuperAdmin, sessionLoading, refetch]);
 
-  const handleRequestOtp = async (value: string) => {
+  const handleRequestOtp = async (value: string, rememberChoice: boolean) => {
     try {
       setLoading(true);
       setError(undefined);
       await requestOtp(value);
       setEmail(value);
+      setRememberMe(rememberChoice);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to send OTP");
     } finally {
@@ -55,7 +57,7 @@ export default function AuthBase() {
     try {
       setLoading(true);
       setError(undefined);
-      await verifyOtp(email, otp);
+      await verifyOtp(email, otp, rememberMe);
       // Session cookie is set by backend; only global super admins can access dashboard
       const session = await getSession();
       if (session?.user && session.user.isGlobalSuperAdmin !== true) {

@@ -2,9 +2,29 @@ import { apiConfig } from "@/src/config/api.config";
 
 type RequestInitWithBody = Omit<RequestInit, "body"> & { body?: object };
 
+function shouldTryRefreshForUrl(url: string): boolean {
+  return (
+    !url.includes("/auth/refresh") &&
+    !url.includes("/auth/request-otp") &&
+    !url.includes("/auth/verify-otp") &&
+    !url.includes("/auth/logout")
+  );
+}
+
+async function postRefresh(): Promise<boolean> {
+  const refreshUrl = `${apiConfig.baseUrl}/auth/refresh`;
+  const res = await fetch(refreshUrl, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+  return res.ok;
+}
+
 async function request<T>(
   url: string,
-  options: RequestInitWithBody = {}
+  options: RequestInitWithBody = {},
+  didRefresh = false,
 ): Promise<T> {
   const { body, headers: customHeaders, ...rest } = options;
 
@@ -23,6 +43,17 @@ async function request<T>(
   };
 
   const res = await fetch(url, config);
+
+  if (
+    res.status === 401 &&
+    shouldTryRefreshForUrl(url) &&
+    !didRefresh
+  ) {
+    const refreshed = await postRefresh();
+    if (refreshed) {
+      return request<T>(url, options, true);
+    }
+  }
 
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));

@@ -4,11 +4,11 @@ export interface LabelValue {
   value: string;
 }
 
-/** Creator info on company */
+/** Creator / company admin (earliest admin UserCompany) */
 export interface CompanyCreatedBy {
-  firstName: string;
-  lastName: string;
-  profilePicture?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
 }
 
 /** Company as returned from list or get-one (minimal or full) */

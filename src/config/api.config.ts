@@ -24,6 +24,7 @@ export const apiConfig = {
   superAdmin: {
     dashboardStats: `${API_BASE}/super-admin/dashboard/stats`,
     users: `${API_BASE}/super-admin/users`,
+    userById: (userId: string) => `${API_BASE}/super-admin/users/${userId}`,
     companies: `${API_BASE}/super-admin/companies`,
     companyById: (id: string) => `${API_BASE}/super-admin/companies/${id}`,
     companyUsage: (id: string) => `${API_BASE}/super-admin/companies/${id}/usage`,
