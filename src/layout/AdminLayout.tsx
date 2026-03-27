@@ -27,16 +27,18 @@ export default function AdminLayout({
       : "lg:ml-[90px]";
 
   return (
-    <div className="min-h-screen xl:flex">
+    <div className="min-h-screen">
       <AppSidebar />
       <Backdrop />
       <div
-        className={`flex-1 overflow-x-hidden transition-all duration-300 ease-in-out ${mainContentMargin}`}
+        className={`flex min-h-[100dvh] flex-col overflow-x-hidden transition-all duration-300 ease-in-out ${mainContentMargin}`}
       >
-        <AppHeader />
-        <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">
-          {children}
+        <div className="shrink-0">
+          <AppHeader />
         </div>
+        <main className="mx-auto flex min-h-0 w-full max-w-(--breakpoint-2xl) flex-1 flex-col p-4 md:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

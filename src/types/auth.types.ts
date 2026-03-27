@@ -3,6 +3,7 @@ export interface SessionUser {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  profilePicture?: string | null;
   isGlobalSuperAdmin?: boolean;
 }
 

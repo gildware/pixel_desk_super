@@ -1,23 +1,85 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Dropdown } from "@/src/components/ui/dropdown/Dropdown";
+import Link from "next/link";
+import {
+  getUnreadNotificationsCount,
+  listNotifications,
+  markNotificationRead,
+} from "@/src/services/api/notification.api";
+import type { SuperAdminNotification } from "@/src/types/notification.types";
 
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifying, setNotifying] = useState(true);
+  const [items, setItems] = useState<SuperAdminNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  function toggleDropdown() {
-    setIsOpen(!isOpen);
+  async function loadUnreadCount() {
+    try {
+      const count = await getUnreadNotificationsCount();
+      setUnreadCount(count);
+    } catch {
+      setUnreadCount(0);
+    }
   }
+
+  async function loadLatestNotifications() {
+    setLoading(true);
+    try {
+      const result = await listNotifications({ page: 1, limit: 6 });
+      setItems(Array.isArray(result.items) ? result.items : []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadLatestNotifications();
+    loadUnreadCount();
+  }, [isOpen]);
+
+  const hasUnread = unreadCount > 0;
 
   function closeDropdown() {
     setIsOpen(false);
   }
 
-  const handleClick = () => {
-    toggleDropdown();
-    setNotifying(false);
+  const handleClick = async () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  const unreadBadgeText = useMemo(() => {
+    if (unreadCount <= 0) return "";
+    if (unreadCount > 99) return "99+";
+    return String(unreadCount);
+  }, [unreadCount]);
+
+  const onNotificationClick = async (item: SuperAdminNotification) => {
+    if (item.isRead) return;
+    try {
+      await markNotificationRead(item.id);
+      setItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, isRead: true } : it))
+      );
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
+    } catch {
+      // Intentionally ignore non-critical mark-read failure in dropdown.
+    }
+  };
+
+  const formatWhen = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString();
   };
 
   return (
@@ -27,11 +89,11 @@ export default function NotificationDropdown() {
         onClick={handleClick}
       >
         <span
-          className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            !notifying ? "hidden" : "flex"
+          className={`absolute right-0 top-0.5 z-10 min-h-2 min-w-2 rounded-full bg-orange-500 px-1 text-[10px] text-white ${
+            !hasUnread ? "hidden" : "flex items-center justify-center"
           }`}
         >
-          <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
+          {unreadBadgeText}
         </span>
         <svg
           className="fill-current"
@@ -55,10 +117,10 @@ export default function NotificationDropdown() {
       >
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
           <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Notification
+            Notifications
           </h5>
           <button
-            onClick={toggleDropdown}
+            onClick={() => setIsOpen(false)}
             className="text-gray-500 transition dropdown-toggle dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
             <svg
@@ -78,11 +140,51 @@ export default function NotificationDropdown() {
           </button>
         </div>
         <ul className="flex flex-col overflow-y-auto custom-scrollbar">
-          {/* No notifications in list */}
+          {loading ? (
+            <li className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+              Loading notifications...
+            </li>
+          ) : (
+            items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => onNotificationClick(item)}
+                  className={`w-full rounded-lg px-2 py-2 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                    item.isRead ? "opacity-75" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                      {item.title}
+                    </p>
+                    {!item.isRead && (
+                      <span className="mt-1 inline-block h-2 w-2 rounded-full bg-brand-500" />
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-theme-xs text-gray-600 dark:text-gray-400">
+                    {item.message}
+                  </p>
+                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-500">
+                    {formatWhen(item.createdAt)}
+                  </p>
+                </button>
+              </li>
+            ))
+          )}
         </ul>
-        <p className="py-4 text-center text-theme-sm text-gray-500 dark:text-gray-400">
-          No notifications
-        </p>
+        {!loading && items.length === 0 && (
+          <p className="py-3 text-center text-theme-sm text-gray-500 dark:text-gray-400">
+            No notifications
+          </p>
+        )}
+        <Link
+          href="/notifications"
+          className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-center text-theme-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+          onClick={closeDropdown}
+        >
+          View all notifications
+        </Link>
       </Dropdown>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   listCompanyClients,
   listCompanyProjects,
 } from "@/src/services/api/company.api";
+import { listPlatformDashboardUsesAdmin } from "@/src/services/api/platformCatalog.api";
 import type {
   Company,
   CompanyUsageResponse,
@@ -21,6 +22,7 @@ import type {
   CompanyClientItem,
   CompanyProjectItem,
 } from "@/src/types/company.types";
+import type { PlatformDashboardUseAdminRow } from "@/src/types/platformCatalog.types";
 
 function labelFrom(field: string | LabelValue | undefined): string {
   if (field == null) return "—";
@@ -50,20 +52,51 @@ function companyName(c: Company): string {
   );
 }
 
-function formatLastActivity(iso?: string | null): string {
+function formatDateTime(iso?: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = monthNames[d.getMonth()] ?? "—";
+  const year = d.getFullYear();
+
+  let hours = d.getHours();
+  const ampm = hours >= 12 ? "pm" : "am";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+}
+
+function formatLastActivity(iso?: string | null): string {
+  // Keep last-activity formatting consistent with other timestamps.
+  return formatDateTime(iso);
 }
 
 function inactivityBadgeClass(
   state?: Company["inactivityState"],
 ): string {
+  if (state === "active") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  }
   if (state === "delete_due") {
     return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300";
   }
@@ -103,6 +136,10 @@ export default function CompanyDetailPage({
   const [lastInactivityEmailSentFor, setLastInactivityEmailSentFor] =
     useState<InactivityAction | null>(null);
   const [sendingInactivity, setSendingInactivity] = useState(false);
+  const [dashboardUses, setDashboardUses] = useState<
+    PlatformDashboardUseAdminRow[]
+  >([]);
+  const [dashboardUsesLoading, setDashboardUsesLoading] = useState(false);
 
   type TabId = "projects" | "employees" | "clients";
   const [activeTab, setActiveTab] = useState<TabId>("projects");
@@ -133,6 +170,27 @@ export default function CompanyDetailPage({
       cancelled = true;
     };
   }, [params]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDashboardUsesLoading(true);
+    listPlatformDashboardUsesAdmin()
+      .then((rows) => {
+        if (cancelled) return;
+        setDashboardUses(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDashboardUses([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDashboardUsesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!companyId) return;
@@ -447,28 +505,36 @@ export default function CompanyDetailPage({
                   <p className="text-theme-xs text-gray-500 dark:text-gray-400">
                     Status
                   </p>
+                  {company.status ? (
+                    <span
+                      className={
+                        String(company.status).toLowerCase() === "active"
+                          ? "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }
+                    >
+                      {String(company.status).toLowerCase() === "active"
+                        ? "Active"
+                        : company.status}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 dark:text-gray-400">—</span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                    Created at
+                  </p>
                   <p className="font-medium text-gray-800 dark:text-white/90">
-                    {company.status ?? "—"}
+                    {formatDateTime(company.createdAt)}
                   </p>
                 </div>
                 <div>
                   <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                    Created
+                    Updated at
                   </p>
                   <p className="font-medium text-gray-800 dark:text-white/90">
-                    {company.createdAt
-                      ? new Date(company.createdAt).toLocaleString()
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                    Updated
-                  </p>
-                  <p className="font-medium text-gray-800 dark:text-white/90">
-                    {company.updatedAt
-                      ? new Date(company.updatedAt).toLocaleString()
-                      : "—"}
+                    {formatDateTime(company.updatedAt)}
                   </p>
                 </div>
                 <div>
@@ -480,25 +546,18 @@ export default function CompanyDetailPage({
                       {formatLastActivity(company.lastActivityAt ?? null)}
                     </p>
                     {company.inactivityState &&
-                      company.inactivityState !== "active" &&
                       company.inactivityState !== "unknown" && (
                         <span
                           className={inactivityBadgeClass(company.inactivityState)}
                         >
-                          {company.inactivityState === "warning"
-                            ? "Inactive"
-                            : "Delete due"}
+                          {company.inactivityState === "active"
+                            ? "Active"
+                            : company.inactivityState === "warning"
+                              ? "Inactive"
+                              : "Delete due"}
                         </span>
                       )}
                   </div>
-                </div>
-                <div>
-                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                    ID
-                  </p>
-                  <p className="font-mono text-theme-xs text-gray-600 dark:text-gray-400">
-                    {company.id}
-                  </p>
                 </div>
                 {company.createdBy && (
                   <div>
@@ -510,7 +569,7 @@ export default function CompanyDetailPage({
                         <img
                           src={company.createdBy.profilePicture}
                           alt=""
-                          className="h-6 w-6 rounded-full object-cover"
+                          className="h-6 w-6 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
                         />
                       ) : null}
                       <p className="font-medium text-gray-800 dark:text-white/90">
@@ -830,14 +889,53 @@ export default function CompanyDetailPage({
                   <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
                     {label}
                   </label>
-                  <input
-                    type="text"
-                    value={(editForm as Record<string, string>)[key] ?? ""}
-                    onChange={(e) =>
-                      setEditForm((f) => ({ ...f, [key]: e.target.value }))
-                    }
-                    className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
-                  />
+                  {key === "primaryUse" ? (
+                    <select
+                      value={editForm.primaryUse ?? ""}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, primaryUse: e.target.value }))
+                      }
+                      disabled={dashboardUsesLoading}
+                      className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90 disabled:opacity-60"
+                    >
+                      <option value="" disabled>
+                        {dashboardUsesLoading ? "Loading..." : "Select"}
+                      </option>
+                      {(dashboardUses ?? [])
+                        .filter((u) => u.isActive)
+                        .map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
+                          </option>
+                        ))}
+                      {(() => {
+                        const current = editForm.primaryUse ?? "";
+                        const inList = dashboardUses.some(
+                          (u) => u.value === current,
+                        );
+                        if (!current || inList) return null;
+                        // Fallback: avoid leaking internal value when possible.
+                        const safeFallbackLabel =
+                          company && typeof company.primaryUse === "object" && company.primaryUse
+                            ? company.primaryUse.label
+                            : "Unknown";
+                        return (
+                          <option value={current}>
+                            {safeFallbackLabel}
+                          </option>
+                        );
+                      })()}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={(editForm as Record<string, string>)[key] ?? ""}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, [key]: e.target.value }))
+                      }
+                      className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                    />
+                  )}
                 </div>
               ))}
             </div>

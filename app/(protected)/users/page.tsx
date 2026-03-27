@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   listSuperAdminUsers,
   deleteSuperAdminUser,
@@ -12,6 +12,11 @@ const DEFAULT_LIMIT = 20;
 
 /** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
 const DELETE_CONFIRM_PHRASE = "DELETE";
+
+const STICKY_CARD_BG =
+  "bg-white shadow-[4px_0_10px_-4px_rgba(15,23,42,0.12)] dark:bg-gray-900 dark:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.45)]";
+const STICKY_CARD_BG_RIGHT =
+  "bg-white shadow-[-4px_0_10px_-4px_rgba(15,23,42,0.12)] dark:bg-gray-900 dark:shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.45)]";
 
 function displayName(u: SuperAdminUserItem): string {
   const parts = [u.firstName, u.lastName].filter(Boolean);
@@ -36,6 +41,14 @@ export default function UsersPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
+
+  const visibleItems = useMemo(
+    () =>
+      (items ?? []).filter((u) =>
+        currentUserId ? u.id !== currentUserId : true
+      ),
+    [items, currentUserId]
+  );
 
   const formatLastActivity = (iso?: string | null) => {
     if (!iso) return "—";
@@ -147,40 +160,49 @@ export default function UsersPage() {
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
             Loading users…
           </p>
-        ) : (items ?? []).length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
             No users found.
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-theme-sm">
+            <div
+              className="overflow-x-auto"
+              style={{ overscrollBehaviorX: "contain" }}
+            >
+              <table className="min-w-max w-full border-separate border-spacing-0 text-left text-theme-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
-                      User
+                    <th
+                      className={`sticky left-0 z-30 ${STICKY_CARD_BG} px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap`}
+                    >
+                      Name
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Email
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Companies
                     </th>
-                    <th className="pb-3 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Last activity
                     </th>
-                    <th className="pb-3 w-28 text-right font-medium text-gray-700 dark:text-gray-300">
+                    <th
+                      className={`sticky right-0 z-30 ${STICKY_CARD_BG_RIGHT} w-28 px-3 pb-3 text-right font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap`}
+                    >
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(items ?? []).map((u) => (
+                  {visibleItems.map((u) => (
                     <tr
                       key={u.id}
                       className="border-b border-gray-100 dark:border-gray-800"
                     >
-                      <td className="py-3 text-gray-800 dark:text-white/90">
+                      <td
+                        className={`sticky left-0 z-20 ${STICKY_CARD_BG} px-3 py-3 whitespace-nowrap text-gray-800 dark:text-white/90`}
+                      >
                         <div className="flex items-center gap-3">
                           {u.profilePicture ? (
                             <img
@@ -196,10 +218,10 @@ export default function UsersPage() {
                           {displayName(u)}
                         </div>
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
                         {u.email}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
                         {Array.isArray(u.companies) && u.companies.length > 0 ? (
                           <ul className="list-inside list-disc space-y-0.5">
                             {u.companies.map((c) => (
@@ -213,7 +235,7 @@ export default function UsersPage() {
                           "—"
                         )}
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">
+                      <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
                         <div className="flex items-center gap-2">
                           <span>{formatLastActivity(u.lastActivityAt)}</span>
                           {u.inactivityState &&
@@ -227,7 +249,9 @@ export default function UsersPage() {
                             )}
                         </div>
                       </td>
-                      <td className="py-3 text-right">
+                      <td
+                        className={`sticky right-0 z-20 ${STICKY_CARD_BG_RIGHT} px-3 py-3 whitespace-nowrap text-right`}
+                      >
                         {currentUserId === u.id ? (
                           <span className="text-theme-xs text-gray-400 dark:text-gray-500">
                             Current user

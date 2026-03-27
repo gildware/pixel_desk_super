@@ -7,7 +7,9 @@ import {
   updateCompany,
   deleteCompany,
 } from "@/src/services/api/company.api";
+import { listPlatformDashboardUsesAdmin } from "@/src/services/api/platformCatalog.api";
 import type { Company, UpdateCompanyBody, LabelValue } from "@/src/types/company.types";
+import type { PlatformDashboardUseAdminRow } from "@/src/types/platformCatalog.types";
 import { EyeIcon, PencilIcon, TrashBinIcon } from "@/src/icons";
 
 const DEFAULT_LIMIT = 20;
@@ -36,20 +38,51 @@ function adminDisplayName(
   return parts.length > 0 ? parts.join(" ") : "—";
 }
 
-function formatLastActivity(iso?: string | null): string {
+function formatDateTime(iso?: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  });
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = monthNames[d.getMonth()] ?? "—";
+  const year = d.getFullYear();
+
+  let hours = d.getHours();
+  const ampm = hours >= 12 ? "pm" : "am";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+}
+
+function formatLastActivity(iso?: string | null): string {
+  // Keep last-activity formatting consistent with other timestamps.
+  return formatDateTime(iso);
 }
 
 function inactivityBadgeClass(
   state?: Company["inactivityState"],
 ): string {
+  if (state === "active") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  }
   if (state === 'delete_due') {
     return 'inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300';
   }
@@ -58,6 +91,12 @@ function inactivityBadgeClass(
   }
   return '';
 }
+
+/** Sticky table edge cells: opaque bg + shadow so horizontal scroll keeps name/actions readable */
+const STICKY_CARD_BG =
+  "bg-white shadow-[4px_0_10px_-4px_rgba(15,23,42,0.12)] dark:bg-gray-900 dark:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.45)]";
+const STICKY_CARD_BG_RIGHT =
+  "bg-white shadow-[-4px_0_10px_-4px_rgba(15,23,42,0.12)] dark:bg-gray-900 dark:shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.45)]";
 
 export default function CompaniesPage() {
   const [items, setItems] = useState<Company[]>([]);
@@ -73,6 +112,11 @@ export default function CompaniesPage() {
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [editForm, setEditForm] = useState<UpdateCompanyBody>({});
   const [saving, setSaving] = useState(false);
+
+  const [dashboardUses, setDashboardUses] = useState<
+    PlatformDashboardUseAdminRow[]
+  >([]);
+  const [dashboardUsesLoading, setDashboardUsesLoading] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -98,6 +142,27 @@ export default function CompaniesPage() {
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDashboardUsesLoading(true);
+    listPlatformDashboardUsesAdmin()
+      .then((rows) => {
+        if (cancelled) return;
+        setDashboardUses(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDashboardUses([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDashboardUsesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +267,9 @@ export default function CompaniesPage() {
               <table className="min-w-max w-full border-separate border-spacing-x-4 border-spacing-y-0 text-left text-theme-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <th
+                      className={`sticky left-0 z-30 ${STICKY_CARD_BG} px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap`}
+                    >
                       Name
                     </th>
                     <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
@@ -229,7 +296,9 @@ export default function CompaniesPage() {
                     <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       Employees
                     </th>
-                    <th className="px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <th
+                      className={`sticky right-0 z-30 ${STICKY_CARD_BG_RIGHT} px-3 pb-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap`}
+                    >
                       Actions
                     </th>
                   </tr>
@@ -240,7 +309,9 @@ export default function CompaniesPage() {
                       key={c.id}
                       className="border-b border-gray-100 dark:border-gray-800"
                     >
-                      <td className="px-3 py-3 whitespace-nowrap text-gray-800 dark:text-white/90">
+                      <td
+                        className={`sticky left-0 z-20 ${STICKY_CARD_BG} px-3 py-3 whitespace-nowrap text-gray-800 dark:text-white/90`}
+                      >
                         <Link
                           href={`/companies/${c.id}`}
                           title="View company"
@@ -279,7 +350,9 @@ export default function CompaniesPage() {
                                 : "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                             }
                           >
-                            {c.status}
+                            {String(c.status).toLowerCase() === "active"
+                              ? "Active"
+                              : c.status}
                           </span>
                         ) : (
                           <span className="text-gray-500 dark:text-gray-400">—</span>
@@ -289,12 +362,13 @@ export default function CompaniesPage() {
                         <div className="flex items-center gap-2">
                           <span>{formatLastActivity(c.lastActivityAt)}</span>
                           {c.inactivityState &&
-                            c.inactivityState !== 'active' &&
                             c.inactivityState !== 'unknown' && (
                               <span className={inactivityBadgeClass(c.inactivityState)}>
-                                {c.inactivityState === 'warning'
-                                  ? 'Inactive'
-                                  : 'Delete due'}
+                                {c.inactivityState === "active"
+                                  ? "Active"
+                                  : c.inactivityState === "warning"
+                                    ? "Inactive"
+                                    : "Delete due"}
                               </span>
                             )}
                         </div>
@@ -308,7 +382,9 @@ export default function CompaniesPage() {
                       <td className="px-3 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {c.totalEmployee ?? "—"}
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap">
+                      <td
+                        className={`sticky right-0 z-20 ${STICKY_CARD_BG_RIGHT} px-3 py-3 whitespace-nowrap`}
+                      >
                         <div className="flex items-center gap-1">
                           <Link
                             href={`/companies/${c.id}`}
@@ -415,14 +491,34 @@ export default function CompaniesPage() {
                 <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
                   Primary use
                 </label>
-                <input
-                  type="text"
+                <select
                   value={editForm.primaryUse ?? ""}
+                  disabled={dashboardUsesLoading}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, primaryUse: e.target.value }))
                   }
-                  className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
-                />
+                  className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90 disabled:opacity-60"
+                >
+                  <option value="" disabled>
+                    {dashboardUsesLoading ? "Loading..." : "Select"}
+                  </option>
+                  {(dashboardUses ?? [])
+                    .filter((u) => u.isActive)
+                    .map((u) => (
+                      <option key={u.value} value={u.value}>
+                        {u.label}
+                      </option>
+                    ))}
+                  {(() => {
+                    const current = editForm.primaryUse ?? "";
+                    if (!current) return null;
+                    const label = dashboardUses.find((u) => u.value === current)
+                      ?.label;
+                    if (label) return null; // already present above
+                    // Avoid leaking the internal slug/value.
+                    return <option value={current}>Unknown</option>;
+                  })()}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">

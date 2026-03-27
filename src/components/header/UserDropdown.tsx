@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import React, { useState } from "react";
 import { useSession } from "@/src/context/SessionContext";
 import { logout } from "@/src/services/api/auth.api";
@@ -47,9 +46,18 @@ export default function UserDropdown() {
         className="flex items-center text-gray-700 dark:text-gray-400 dropdown-toggle"
       >
         <span className="mr-3 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-          <span className="text-theme-sm font-medium text-gray-600 dark:text-gray-300">
-            {(user?.email?.[0] ?? "U").toUpperCase()}
-          </span>
+          {user?.profilePicture ? (
+            // session-driven avatar for super admin profile updates
+            <img
+              src={user.profilePicture}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-theme-sm font-medium text-gray-600 dark:text-gray-300">
+              {(user?.email?.[0] ?? "U").toUpperCase()}
+            </span>
+          )}
         </span>
         <span className="block mr-1 font-medium text-theme-sm truncate max-w-[120px]">
           {displayName}

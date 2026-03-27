@@ -3,15 +3,22 @@
 import { ThemeToggleButton } from "@/src/components/common/ThemeToggleButton";
 import NotificationDropdown from "@/src/components/header/NotificationDropdown";
 import UserDropdown from "@/src/components/header/UserDropdown";
+import { SUPER_ADMIN_SEARCH_ITEMS } from "@/src/config/superAdminSearch";
 import { useSidebar } from "@/src/context/SidebarContext";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const router = useRouter();
+  const pathname = usePathname();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleToggle = () => {
@@ -31,11 +38,40 @@ const AppHeader: React.FC = () => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         inputRef.current?.focus();
+        setIsSearchOpen(true);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return SUPER_ADMIN_SEARCH_ITEMS.slice(0, 8);
+    return SUPER_ADMIN_SEARCH_ITEMS.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.message.toLowerCase().includes(q) ||
+        item.href.toLowerCase().includes(q),
+    ).slice(0, 10);
+  }, [searchQuery]);
+
+  const openResult = (href: string) => {
+    router.push(href);
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  };
 
   return (
     <header className="sticky top-0 z-40 flex w-full bg-white border-gray-200 dark:border-gray-800 dark:bg-gray-900 lg:border-b">
@@ -59,7 +95,7 @@ const AppHeader: React.FC = () => {
 
           <Link href="/dashboard" className="lg:hidden flex items-center">
             {logoError ? (
-              <span className="font-semibold text-gray-800 dark:text-white text-lg">PixelDesk</span>
+              <span className="font-semibold text-gray-800 dark:text-white text-lg">PixelDesk Super Admin</span>
             ) : (
               <>
                 <Image width={154} height={32} className="dark:hidden" src="/images/logo/logo.svg" alt="Logo" onError={() => setLogoError(true)} />
@@ -77,7 +113,7 @@ const AppHeader: React.FC = () => {
             </svg>
           </button>
 
-          <div className="hidden lg:block">
+          <div className="relative hidden lg:block" ref={wrapperRef}>
             <form onSubmit={(e) => e.preventDefault()}>
               <div className="relative">
                 <span className="absolute -translate-y-1/2 left-4 top-1/2 pointer-events-none">
@@ -88,7 +124,19 @@ const AppHeader: React.FC = () => {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Search or type command..."
+                  placeholder="Search menus, settings, and links..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setIsSearchOpen(false);
+                    }
+                    if (e.key === "Enter" && searchResults.length > 0) {
+                      e.preventDefault();
+                      openResult(searchResults[0].href);
+                    }
+                  }}
                   className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[430px]"
                 />
                 <button type="button" className="absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
@@ -97,6 +145,43 @@ const AppHeader: React.FC = () => {
                 </button>
               </div>
             </form>
+            {isSearchOpen && (
+              <div className="absolute left-0 right-0 mt-2 max-h-[420px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                {searchResults.length === 0 ? (
+                  <p className="px-3 py-2 text-theme-sm text-gray-500 dark:text-gray-400">
+                    No matches found.
+                  </p>
+                ) : (
+                  searchResults.map((result) => {
+                    const isCurrentPage = pathname === result.href;
+                    return (
+                      <button
+                        key={result.id}
+                        type="button"
+                        onClick={() => openResult(result.href)}
+                        className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                          isCurrentPage
+                            ? "bg-brand-50 dark:bg-brand-500/10"
+                            : "hover:bg-gray-100 dark:hover:bg-white/[0.06]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                            {result.title}
+                          </p>
+                          <span className="rounded-md border border-gray-200 px-2 py-0.5 text-[11px] uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            {result.kind}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-theme-xs text-gray-500 dark:text-gray-400">
+                          {result.message}
+                        </p>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div

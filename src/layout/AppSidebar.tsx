@@ -5,7 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/src/context/SidebarContext";
-import { GridIcon, TableIcon, UserIcon, TimeIcon } from "@/src/icons/index";
+import {
+  GridIcon,
+  TableIcon,
+  UserIcon,
+  TimeIcon,
+  FileIcon,
+  ListIcon,
+  BellIcon,
+} from "@/src/icons/index";
 
 type NavItem = {
   name: string;
@@ -16,14 +24,24 @@ type NavItem = {
 const navItems: NavItem[] = [
   { icon: <GridIcon />, name: "Dashboard", path: "/dashboard" },
   { icon: <TableIcon />, name: "Companies", path: "/companies" },
+  { icon: <BellIcon />, name: "Notifications", path: "/notifications" },
   { icon: <UserIcon />, name: "Users", path: "/users" },
+  { icon: <ListIcon />, name: "Company defaults", path: "/settings/company-defaults" },
+  { icon: <ListIcon />, name: "Platform catalog", path: "/settings/platform-catalog" },
   { icon: <TimeIcon />, name: "Settings", path: "/settings" },
+  { icon: <FileIcon />, name: "Orphan data", path: "/orphan-data" },
 ];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
-  const isActive = useCallback((path: string) => path === pathname, [pathname]);
+  const isActive = useCallback(
+    (path: string) =>
+      path === "/settings"
+        ? pathname === "/settings"
+        : pathname === path || pathname.startsWith(`${path}/`),
+    [pathname],
+  );
   const [logoError, setLogoError] = useState(false);
 
   const showTextLogo = logoError;
@@ -49,7 +67,7 @@ const AppSidebar: React.FC = () => {
                 expanded ? "text-xl" : "text-lg"
               }`}
             >
-              PixelDesk
+              PixelDesk Super Admin
             </span>
           ) : expanded ? (
             <>

@@ -56,12 +56,35 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    const message =
-      (errBody as { message?: string }).message ||
-      errBody.error ||
-      res.statusText ||
-      `Request failed (${res.status})`;
+    const errBody = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    let message = "";
+    if (typeof errBody.message === "string") {
+      message = errBody.message;
+    }
+    if (!message && typeof errBody.error === "string") {
+      message = errBody.error;
+    }
+    if (!message && Array.isArray(errBody.errors)) {
+      message = (errBody.errors as unknown[])
+        .map((e) => {
+          if (e && typeof e === "object") {
+            if ("msg" in e && (e as { msg: unknown }).msg != null) {
+              return String((e as { msg: unknown }).msg);
+            }
+            if ("message" in e && (e as { message: unknown }).message != null) {
+              return String((e as { message: unknown }).message);
+            }
+          }
+          return "";
+        })
+        .filter(Boolean)
+        .join("; ");
+    }
+    if (!message) {
+      message =
+        res.statusText ||
+        `Request failed (${res.status})`;
+    }
     throw new Error(message);
   }
 
