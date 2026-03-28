@@ -13,10 +13,6 @@ import {
   createPlatformDesignation,
   updatePlatformDesignation,
   deletePlatformDesignation,
-  listPlatformEmployeeCategories,
-  createPlatformEmployeeCategory,
-  updatePlatformEmployeeCategory,
-  deletePlatformEmployeeCategory,
   listPlatformActivityTypes,
   createPlatformActivityType,
   updatePlatformActivityType,
@@ -85,7 +81,6 @@ type TabId =
   | "contractModels"
   | "departments"
   | "designations"
-  | "categories"
   | "activities"
   | "leaveTypes"
   | "defaultRoles";
@@ -142,7 +137,6 @@ export default function CompanyDefaultsPage() {
 
   const [departments, setDepartments] = useState<PlatformDefaultRow[]>([]);
   const [designations, setDesignations] = useState<PlatformDefaultRow[]>([]);
-  const [categories, setCategories] = useState<PlatformDefaultRow[]>([]);
   const [activities, setActivities] = useState<PlatformDefaultRow[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<PlatformDefaultLeaveTypeRow[]>([]);
 
@@ -178,7 +172,6 @@ export default function CompanyDefaultsPage() {
       tabParam === "contractModels" ||
       tabParam === "departments" ||
       tabParam === "designations" ||
-      tabParam === "categories" ||
       tabParam === "activities" ||
       tabParam === "leaveTypes" ||
       tabParam === "defaultRoles"
@@ -194,7 +187,6 @@ export default function CompanyDefaultsPage() {
       try {
         if (tab === "departments") setDepartments(await listPlatformDepartments());
         if (tab === "designations") setDesignations(await listPlatformDesignations());
-        if (tab === "categories") setCategories(await listPlatformEmployeeCategories());
         if (tab === "activities") setActivities(await listPlatformActivityTypes());
         if (tab === "leaveTypes") setLeaveTypes(await listPlatformLeaveTypes());
       } catch (e) {
@@ -312,7 +304,7 @@ export default function CompanyDefaultsPage() {
   };
 
   const toggleActive = async (
-    kind: "departments" | "designations" | "categories" | "activities" | "leaveTypes",
+    kind: "departments" | "designations" | "activities" | "leaveTypes",
     row: PlatformDefaultLeaveTypeRow | PlatformDefaultRow,
     next: boolean,
   ) => {
@@ -323,9 +315,6 @@ export default function CompanyDefaultsPage() {
       } else if (kind === "designations") {
         const u = await updatePlatformDesignation(row.id, { isActive: next });
         setDesignations((prev) => prev.map((r) => (r.id === row.id ? u : r)));
-      } else if (kind === "categories") {
-        const u = await updatePlatformEmployeeCategory(row.id, { isActive: next });
-        setCategories((prev) => prev.map((r) => (r.id === row.id ? u : r)));
       } else if (kind === "activities") {
         const u = await updatePlatformActivityType(row.id, { isActive: next });
         setActivities((prev) => prev.map((r) => (r.id === row.id ? u : r)));
@@ -338,9 +327,7 @@ export default function CompanyDefaultsPage() {
     }
   };
 
-  const addSimpleRow = async (
-    kind: "departments" | "designations" | "categories" | "activities",
-  ) => {
+  const addSimpleRow = async (kind: "departments" | "designations" | "activities") => {
     if (!newName.trim()) return;
     try {
       if (kind === "departments") {
@@ -357,13 +344,6 @@ export default function CompanyDefaultsPage() {
           sortOrder: newSort,
         });
         setDesignations((p) => [...p, r]);
-      } else if (kind === "categories") {
-        const r = await createPlatformEmployeeCategory({
-          name: newName,
-          description: newDesc || null,
-          sortOrder: newSort,
-        });
-        setCategories((p) => [...p, r]);
       } else {
         const r = await createPlatformActivityType({
           name: newName,
@@ -405,7 +385,6 @@ export default function CompanyDefaultsPage() {
     { id: "contractModels", label: "Client contract models" },
     { id: "departments", label: "Departments" },
     { id: "designations", label: "Designations" },
-    { id: "categories", label: "Member categories" },
     { id: "activities", label: "Timesheet activities" },
     { id: "leaveTypes", label: "Leave types" },
     { id: "defaultRoles", label: "Default roles" },
@@ -427,8 +406,7 @@ export default function CompanyDefaultsPage() {
       {counts && (
         <p className="mb-4 text-theme-xs text-gray-500 dark:text-gray-400">
           Templates: {counts.departments} departments, {counts.designations} designations,{" "}
-          {counts.employeeCategories} categories, {counts.activityTypes} activities,{" "}
-          {counts.leaveTypes} leave types.
+          {counts.activityTypes} activities, {counts.leaveTypes} leave types.
         </p>
       )}
 
@@ -931,63 +909,6 @@ export default function CompanyDefaultsPage() {
                   <button
                     type="button"
                     onClick={() => addSimpleRow("designations")}
-                    className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white hover:bg-brand-600"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-            />
-          )}
-
-          {tab === "categories" && (
-            <TemplateTable
-              title="Member category templates"
-              rows={categories}
-              onToggle={(row, v) => toggleActive("categories", row, v)}
-              onDelete={async (id) => {
-                openConfirm("Delete this template?", async () => {
-                  await deletePlatformEmployeeCategory(id);
-                  setCategories((p) => p.filter((r) => r.id !== id));
-                });
-              }}
-              extraColumns={null}
-              renderAdd={() => (
-                <div className="mb-4 flex flex-wrap items-end gap-2">
-                  <label className="min-w-[140px]">
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Name
-                    </span>
-                    <input
-                      className={inputClass}
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                    />
-                  </label>
-                  <label className="min-w-[180px] flex-1">
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Description
-                    </span>
-                    <input
-                      className={inputClass}
-                      value={newDesc}
-                      onChange={(e) => setNewDesc(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Sort
-                    </span>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={newSort}
-                      onChange={(e) => setNewSort(Number(e.target.value))}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => addSimpleRow("categories")}
                     className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white hover:bg-brand-600"
                   >
                     Add

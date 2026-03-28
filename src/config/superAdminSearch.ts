@@ -106,13 +106,6 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
-    id: "setting-company-categories",
-    title: "Member categories",
-    message: "Configure default member categories.",
-    href: "/settings/company-defaults?tab=categories",
-    kind: "setting",
-  },
-  {
     id: "setting-company-activities",
     title: "Timesheet activities",
     message: "Manage default activity types for timesheets.",
