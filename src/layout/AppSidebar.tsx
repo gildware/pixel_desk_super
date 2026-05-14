@@ -13,6 +13,7 @@ import {
   FileIcon,
   ListIcon,
   BellIcon,
+  MailIcon,
 } from "@/src/icons/index";
 
 type NavItem = {
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { icon: <ListIcon />, name: "Company defaults", path: "/settings/company-defaults" },
   { icon: <ListIcon />, name: "Platform catalog", path: "/settings/platform-catalog" },
   { icon: <TimeIcon />, name: "Settings", path: "/settings" },
+  { icon: <MailIcon />, name: "Email configurations", path: "/settings/email-configurations" },
   { icon: <FileIcon />, name: "Orphan data", path: "/orphan-data" },
 ];
 

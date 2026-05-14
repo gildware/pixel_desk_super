@@ -39,6 +39,8 @@ export const apiConfig = {
     inactivitySettings: `${API_BASE}/super-admin/settings/inactivity`,
     companyInactivityManualEmail: (id: string) =>
       `${API_BASE}/super-admin/companies/${id}/inactivity/manual-email`,
+    emailTemplates: `${API_BASE}/super-admin/settings/email-templates`,
+    emailTemplatesPreview: `${API_BASE}/super-admin/settings/email-templates/preview`,
     platformDefaultsOverview: `${API_BASE}/super-admin/platform-defaults/overview`,
     platformDefaultsBootstrap: `${API_BASE}/super-admin/platform-defaults/bootstrap`,
     platformDefaultDepartments: `${API_BASE}/super-admin/platform-defaults/departments`,
