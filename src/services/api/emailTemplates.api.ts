@@ -23,11 +23,14 @@ export type EmailBranding = {
   headerSubtitle: string | null;
   accentColor: string;
   footerText: string;
+  headerHtml: string;
+  footerHtml: string;
 };
 
 export type EmailTemplateBundle = {
   templates: EmailTemplateRow[];
   branding: EmailBranding;
+  defaultBrandingHtml: { headerHtml: string; footerHtml: string };
 };
 
 type ApiEnvelope<T> = {
@@ -40,11 +43,25 @@ function unwrapBundle(res: unknown): EmailTemplateBundle | null {
   if (!res || typeof res !== "object") return null;
   const r = res as ApiEnvelope<EmailTemplateBundle>;
   if (r.data?.templates && r.data.branding) {
-    return { templates: r.data.templates, branding: r.data.branding };
+    return {
+      templates: r.data.templates,
+      branding: r.data.branding,
+      defaultBrandingHtml: r.data.defaultBrandingHtml ?? {
+        headerHtml: "",
+        footerHtml: "",
+      },
+    };
   }
   const flat = res as Partial<EmailTemplateBundle>;
   if (flat.templates && flat.branding) {
-    return { templates: flat.templates, branding: flat.branding };
+    return {
+      templates: flat.templates,
+      branding: flat.branding,
+      defaultBrandingHtml: flat.defaultBrandingHtml ?? {
+        headerHtml: "",
+        footerHtml: "",
+      },
+    };
   }
   return null;
 }

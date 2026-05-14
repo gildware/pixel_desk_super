@@ -38,7 +38,7 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
   {
     id: "menu-email-configurations",
     title: "Email configurations",
-    message: "Configure OTP, invite, and other platform email templates.",
+    message: "Edit OTP, invites, and shared email appearance with a guided layout.",
     href: "/settings/email-configurations",
     kind: "menu",
   },
