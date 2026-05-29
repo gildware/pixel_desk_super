@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { apiConfig } from "@/src/config/api.config";
-import type { Session, SessionUser } from "@/src/types/auth.types";
+import type { Session } from "@/src/types/auth.types";
+import { parseSessionResponse } from "@/src/utils/parseSessionResponse";
 
 function getCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): string {
   return cookieStore
@@ -13,9 +14,13 @@ async function resolveApiUrl(relativeOrAbsolute: string): Promise<string> {
   if (relativeOrAbsolute.startsWith("http")) return relativeOrAbsolute;
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-  const proto = h.get("x-forwarded-proto") ?? (h.get("x-forwarded-ssl") === "on" ? "https" : "http");
-  const origin = host ? `${proto}://${host}` : "";
-  return origin ? `${origin}${relativeOrAbsolute}` : relativeOrAbsolute;
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (h.get("x-forwarded-ssl") === "on" ? "https" : "http");
+  if (host) return `${proto}://${host}${relativeOrAbsolute}`;
+  const fallback = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "");
+  if (fallback) return `${fallback}${relativeOrAbsolute}`;
+  return relativeOrAbsolute;
 }
 
 export async function getServerSession(): Promise<Session | null> {
@@ -32,18 +37,8 @@ export async function getServerSession(): Promise<Session | null> {
 
     if (!res.ok) return null;
 
-    const data = await res.json().catch(() => null) as {
-      status?: string;
-      data?: { user?: SessionUser; isGlobalSuperAdmin?: boolean };
-      user?: SessionUser;
-    } | null;
-    const rawUser = data?.data?.user ?? data?.user;
-    if (!rawUser?.id || !rawUser?.email) return null;
-    const user: SessionUser = {
-      ...rawUser,
-      isGlobalSuperAdmin: rawUser.isGlobalSuperAdmin ?? data?.data?.isGlobalSuperAdmin ?? false,
-    };
-    return { user };
+    const data = await res.json().catch(() => null);
+    return parseSessionResponse(data);
   } catch {
     return null;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { requestOtp, verifyOtp, logout, getSession } from "@/src/services/api/auth.api";
 import { useSession } from "@/src/context/SessionContext";
@@ -8,6 +8,7 @@ import LoginForm from "@/src/components/auth/LoginForm";
 import OtpVerification from "@/src/components/auth/OtpVerification";
 
 export default function AuthBase() {
+  const router = useRouter();
   const { session, loading: sessionLoading, refetch } = useSession();
   const [email, setEmail] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
@@ -24,6 +25,13 @@ export default function AuthBase() {
         .catch(() => refetch());
     }
   }, [session?.user, session?.user?.isGlobalSuperAdmin, sessionLoading, refetch]);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (session?.user?.isGlobalSuperAdmin === true) {
+      router.replace("/dashboard");
+    }
+  }, [session?.user?.isGlobalSuperAdmin, sessionLoading, router]);
 
   const handleRequestOtp = async (value: string, rememberChoice: boolean) => {
     try {
@@ -106,21 +114,13 @@ export default function AuthBase() {
     );
   }
 
-  // Already logged in as global super admin: show "Go to dashboard" (no auto-redirect to avoid loop when app and API use different domains)
+  // Already logged in as global super admin: redirecting to dashboard
   if (session?.user && session.user.isGlobalSuperAdmin === true) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md px-4 text-center">
-          <p className="text-theme-sm text-gray-600 dark:text-gray-300 mb-4">
-            You’re signed in.
-          </p>
-          <Link
-            href="/dashboard"
-            className="inline-block rounded-md bg-brand-600 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-500 dark:bg-brand-500 dark:hover:bg-brand-400"
-          >
-            Go to dashboard
-          </Link>
-        </div>
+        <p className="text-theme-sm text-gray-500 dark:text-gray-400">
+          Redirecting to dashboard…
+        </p>
       </div>
     );
   }

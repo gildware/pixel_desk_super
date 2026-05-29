@@ -29,6 +29,7 @@ import type {
   PlatformDefaultRow,
 } from "@/src/types/platformDefaults.types";
 import CompanyDefaultRolesTab from "@/src/components/company-defaults/CompanyDefaultRolesTab";
+import CompanyDefaultWidgetsTab from "@/src/components/company-defaults/CompanyDefaultWidgetsTab";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90";
@@ -83,7 +84,8 @@ type TabId =
   | "designations"
   | "activities"
   | "leaveTypes"
-  | "defaultRoles";
+  | "defaultRoles"
+  | "widgets";
 
 export default function CompanyDefaultsPage() {
   const [tab, setTab] = useState<TabId>("bootstrap");
@@ -174,7 +176,8 @@ export default function CompanyDefaultsPage() {
       tabParam === "designations" ||
       tabParam === "activities" ||
       tabParam === "leaveTypes" ||
-      tabParam === "defaultRoles"
+      tabParam === "defaultRoles" ||
+      tabParam === "widgets"
     ) {
       setTab(tabParam);
     }
@@ -388,6 +391,7 @@ export default function CompanyDefaultsPage() {
     { id: "activities", label: "Timesheet activities" },
     { id: "leaveTypes", label: "Leave types" },
     { id: "defaultRoles", label: "Default roles" },
+    { id: "widgets", label: "Widget Management" },
   ];
 
   return (
@@ -406,7 +410,8 @@ export default function CompanyDefaultsPage() {
       {counts && (
         <p className="mb-4 text-theme-xs text-gray-500 dark:text-gray-400">
           Templates: {counts.departments} departments, {counts.designations} designations,{" "}
-          {counts.activityTypes} activities, {counts.leaveTypes} leave types.
+          {counts.activityTypes} activities, {counts.leaveTypes} leave types
+          {counts.widgets != null ? `, ${counts.widgets} widgets` : ""}.
         </p>
       )}
 
@@ -1075,6 +1080,8 @@ export default function CompanyDefaultsPage() {
           )}
 
           {tab === "defaultRoles" && <CompanyDefaultRolesTab />}
+
+          {tab === "widgets" && <CompanyDefaultWidgetsTab />}
         </>
       )}
       </div>

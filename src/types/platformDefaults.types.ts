@@ -42,6 +42,23 @@ export type PlatformDefaultLeaveTypeRow = PlatformDefaultRow & {
   shortName: string;
 };
 
+export type WidgetVisibility = "member" | "client" | "both";
+
+export type PlatformDefaultWidgetRow = {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  visibility: WidgetVisibility;
+  previewImage: string;
+  gridW: number;
+  gridH: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PlatformDefaultsOverview = {
   bootstrap: PlatformBootstrap;
   counts: {
@@ -50,5 +67,6 @@ export type PlatformDefaultsOverview = {
     employeeCategories: number;
     activityTypes: number;
     leaveTypes: number;
+    widgets: number;
   };
 };

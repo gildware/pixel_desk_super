@@ -4,6 +4,7 @@ import type {
   PlatformBootstrap,
   PlatformDefaultLeaveTypeRow,
   PlatformDefaultRow,
+  PlatformDefaultWidgetRow,
   PlatformDefaultsOverview,
 } from "@/src/types/platformDefaults.types";
 
@@ -200,4 +201,22 @@ export async function updatePlatformLeaveType(
 
 export async function deletePlatformLeaveType(id: string): Promise<void> {
   await apiClient.delete(apiConfig.superAdmin.platformDefaultLeaveType(id));
+}
+
+export async function listPlatformWidgets(): Promise<PlatformDefaultWidgetRow[]> {
+  const res = await apiClient.get<unknown>(apiConfig.superAdmin.platformDefaultWidgets);
+  return unwrap<PlatformDefaultWidgetRow[]>(res);
+}
+
+export async function updatePlatformWidget(
+  id: string,
+  body: Partial<
+    Pick<PlatformDefaultWidgetRow, "icon" | "previewImage" | "visibility" | "isActive">
+  >,
+): Promise<PlatformDefaultWidgetRow> {
+  const res = await apiClient.patch<unknown>(
+    apiConfig.superAdmin.platformDefaultWidget(id),
+    body,
+  );
+  return unwrap<PlatformDefaultWidgetRow>(res);
 }

@@ -162,6 +162,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
+    id: "setting-company-widgets",
+    title: "Widget Management",
+    message: "Configure dashboard widget icons and image types.",
+    href: "/settings/company-defaults?tab=widgets",
+    kind: "setting",
+  },
+  {
     id: "setting-catalog-industries",
     title: "Industries",
     message: "Manage platform industries and project types.",

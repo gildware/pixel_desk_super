@@ -58,6 +58,9 @@ export const apiConfig = {
     platformDefaultLeaveTypes: `${API_BASE}/super-admin/platform-defaults/leave-types`,
     platformDefaultLeaveType: (id: string) =>
       `${API_BASE}/super-admin/platform-defaults/leave-types/${id}`,
+    platformDefaultWidgets: `${API_BASE}/super-admin/platform-defaults/widgets`,
+    platformDefaultWidget: (id: string) =>
+      `${API_BASE}/super-admin/platform-defaults/widgets/${id}`,
     platformCatalogIndustries: `${API_BASE}/super-admin/platform-catalog/industries`,
     platformCatalogIndustry: (id: string) =>
       `${API_BASE}/super-admin/platform-catalog/industries/${id}`,

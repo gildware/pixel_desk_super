@@ -23,12 +23,7 @@ export interface UpdateMyProfilePayload {
   profileImage?: string;
 }
 
-type UploadFileResponse = {
-  data?: {
-    url?: string;
-  };
-  message?: string;
-};
+import { uploadFile } from "./fileUpload.api";
 
 /**
  * Update current user profile
@@ -48,26 +43,7 @@ export async function updateMyProfile(
 }
 
 export async function uploadMyProfileImage(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch(apiConfig.fileUpload, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
-
-  const body = (await res.json().catch(() => ({}))) as UploadFileResponse;
-  if (!res.ok) {
-    throw new Error(body?.message || "Image upload failed");
-  }
-
-  const uploadedUrl = body?.data?.url;
-  if (!uploadedUrl) {
-    throw new Error("Uploaded image URL missing in response");
-  }
-
-  return uploadedUrl;
+  return uploadFile(file);
 }
 
 export interface ListSuperAdminUsersParams {

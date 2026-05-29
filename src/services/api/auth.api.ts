@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import { apiConfig } from "@/src/config/api.config";
+import { parseSessionResponse } from "@/src/utils/parseSessionResponse";
 import type {
   RequestOtpResponse,
   VerifyOtpResponse,
@@ -28,21 +29,12 @@ export async function logout(): Promise<void> {
   await apiClient.post(apiConfig.auth.logout);
 }
 
-/** API session response: { status, message, data: { user, ... } } or 401 when not logged in */
 export async function getSession(): Promise<Session | null> {
   try {
-    const data = await apiClient.get<{
-      status?: string;
-      data?: { user?: Session["user"]; isGlobalSuperAdmin?: boolean };
-      user?: Session["user"];
-    }>(apiConfig.auth.session);
-    const rawUser = data?.data?.user ?? data?.user;
-    if (!rawUser?.id || !rawUser?.email) return null;
-    const user: Session["user"] = {
-      ...rawUser,
-      isGlobalSuperAdmin: rawUser.isGlobalSuperAdmin ?? data?.data?.isGlobalSuperAdmin ?? false,
-    };
-    return { user };
+    const data = await apiClient.get<Parameters<typeof parseSessionResponse>[0]>(
+      apiConfig.auth.session,
+    );
+    return parseSessionResponse(data);
   } catch {
     return null;
   }
