@@ -5,14 +5,14 @@ import NotificationDropdown from "@/src/components/header/NotificationDropdown";
 import UserDropdown from "@/src/components/header/UserDropdown";
 import { SUPER_ADMIN_SEARCH_ITEMS } from "@/src/config/superAdminSearch";
 import { useSidebar } from "@/src/context/SidebarContext";
-import Image from "next/image";
+import { useBranding } from "@/src/context/BrandingContext";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-  const [logoError, setLogoError] = useState(false);
+  const { branding } = useBranding();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
@@ -94,13 +94,15 @@ const AppHeader: React.FC = () => {
           </button>
 
           <Link href="/dashboard" className="lg:hidden flex items-center">
-            {logoError ? (
-              <span className="font-semibold text-gray-800 dark:text-white text-lg">PixelDesk Super Admin</span>
-            ) : (
+            {branding.logoUrl ? (
               <>
-                <Image width={154} height={32} className="dark:hidden" src="/images/logo/logo.svg" alt="Logo" onError={() => setLogoError(true)} />
-                <Image width={154} height={32} className="hidden dark:block" src="/images/logo/logo-dark.svg" alt="Logo" onError={() => setLogoError(true)} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="max-h-8 w-auto object-contain dark:hidden" src={branding.logoUrl} alt={branding.siteName} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="hidden max-h-8 w-auto object-contain dark:block" src={branding.logoDarkUrl || branding.logoUrl} alt={branding.siteName} />
               </>
+            ) : (
+              <span className="font-semibold text-gray-800 dark:text-white text-lg">{branding.siteName}</span>
             )}
           </Link>
 

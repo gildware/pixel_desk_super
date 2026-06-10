@@ -3,6 +3,7 @@ import "./globals.css";
 import { SessionProvider } from "@/src/context/SessionContext";
 import { SidebarProvider } from "@/src/context/SidebarContext";
 import { ThemeProvider } from "@/src/context/ThemeContext";
+import { BrandingProvider } from "@/src/context/BrandingContext";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -22,9 +23,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${outfit.className} dark:bg-gray-900`}>
         <ThemeProvider>
-          <SessionProvider>
-            <SidebarProvider>{children}</SidebarProvider>
-          </SessionProvider>
+          <BrandingProvider>
+            <SessionProvider>
+              <SidebarProvider>{children}</SidebarProvider>
+            </SessionProvider>
+          </BrandingProvider>
         </ThemeProvider>
       </body>
     </html>

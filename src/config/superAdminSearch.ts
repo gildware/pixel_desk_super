@@ -22,6 +22,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-helpdesk",
+    title: "Helpdesk",
+    message: "Read and reply to helpdesk requests from dashboard users.",
+    href: "/helpdesk",
+    kind: "menu",
+  },
+  {
     id: "menu-users",
     title: "Users",
     message: "View and manage super admin users.",
@@ -34,6 +41,20 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     message: "Review orphaned records that need action.",
     href: "/orphan-data",
     kind: "menu",
+  },
+  {
+    id: "menu-website-settings",
+    title: "Website settings",
+    message: "Manage site logo, dark-mode logo, and favicon shown across all apps.",
+    href: "/settings/website",
+    kind: "menu",
+  },
+  {
+    id: "setting-website-appearance",
+    title: "Appearance & Logos",
+    message: "Upload the platform logo and favicon.",
+    href: "/settings/website",
+    kind: "setting",
   },
   {
     id: "menu-email-configurations",
@@ -89,6 +110,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     title: "Platform catalog",
     message: "Manage industries, dashboard uses, and skillsets.",
     href: "/settings/platform-catalog",
+    kind: "menu",
+  },
+  {
+    id: "menu-faqs",
+    title: "HelpDesk FAQs",
+    message: "Manage the FAQ entries shown to users on the Helpdesk page.",
+    href: "/settings/faqs",
     kind: "menu",
   },
   {

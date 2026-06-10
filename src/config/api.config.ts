@@ -12,6 +12,7 @@ const API_BASE = USE_PROXY ? "/api/proxy" : RAW_API_URL;
 
 export const apiConfig = {
   baseUrl: API_BASE,
+  publicBranding: `${API_BASE}/public/branding`,
   auth: {
     requestOtp: `${API_BASE}/auth/request-otp`,
     verifyOtp: `${API_BASE}/auth/verify-otp`,
@@ -39,6 +40,7 @@ export const apiConfig = {
     inactivitySettings: `${API_BASE}/super-admin/settings/inactivity`,
     companyInactivityManualEmail: (id: string) =>
       `${API_BASE}/super-admin/companies/${id}/inactivity/manual-email`,
+    websiteSettings: `${API_BASE}/super-admin/settings/website`,
     emailTemplates: `${API_BASE}/super-admin/settings/email-templates`,
     emailTemplatesPreview: `${API_BASE}/super-admin/settings/email-templates/preview`,
     platformDefaultsOverview: `${API_BASE}/super-admin/platform-defaults/overview`,
@@ -61,6 +63,13 @@ export const apiConfig = {
     platformDefaultWidgets: `${API_BASE}/super-admin/platform-defaults/widgets`,
     platformDefaultWidget: (id: string) =>
       `${API_BASE}/super-admin/platform-defaults/widgets/${id}`,
+    platformFaqs: `${API_BASE}/super-admin/platform-faqs`,
+    platformFaq: (id: string) => `${API_BASE}/super-admin/platform-faqs/${id}`,
+    helpdeskTickets: `${API_BASE}/super-admin/helpdesk-tickets`,
+    helpdeskTicket: (id: string) =>
+      `${API_BASE}/super-admin/helpdesk-tickets/${id}`,
+    helpdeskTicketReply: (id: string) =>
+      `${API_BASE}/super-admin/helpdesk-tickets/${id}/reply`,
     platformCatalogIndustries: `${API_BASE}/super-admin/platform-catalog/industries`,
     platformCatalogIndustry: (id: string) =>
       `${API_BASE}/super-admin/platform-catalog/industries/${id}`,
