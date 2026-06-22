@@ -16,6 +16,7 @@ export interface ListCompaniesParams {
   page?: number;
   limit?: number;
   search?: string;
+  status?: string;
 }
 
 export interface ListCompanySubResourceParams {
@@ -31,11 +32,12 @@ export interface ListCompanySubResourceParams {
 export async function listCompanies(
   params: ListCompaniesParams = {}
 ): Promise<ListCompaniesResponse> {
-  const { page = 1, limit = 20, search } = params;
+  const { page = 1, limit = 20, search, status } = params;
   const searchParams = new URLSearchParams();
   searchParams.set("page", String(page));
   searchParams.set("limit", String(Math.min(limit, 100)));
   if (search?.trim()) searchParams.set("search", search.trim());
+  if (status?.trim()) searchParams.set("status", status.trim());
   const url = `${apiConfig.superAdmin.companies}?${searchParams.toString()}`;
   const res = await apiClient.get<{
     data?: {

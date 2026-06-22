@@ -36,6 +36,14 @@ function valueFrom(field: string | LabelValue | undefined): string {
 /** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
 const DELETE_CONFIRM_PHRASE = "DELETE";
 
+/** Must be typed exactly (case-insensitive) to enable Disable in the confirmation modal. */
+const DISABLE_CONFIRM_PHRASE = "DISABLE";
+
+/** Must be typed exactly (case-insensitive) to enable Enable in the confirmation modal. */
+const ENABLE_CONFIRM_PHRASE = "ENABLE";
+
+const REALTIME_REFRESH_MS = 15000;
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -124,6 +132,14 @@ export default function CompanyDetailPage({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [disableConfirmText, setDisableConfirmText] = useState("");
+  const [disableError, setDisableError] = useState<string | null>(null);
+  const [disabling, setDisabling] = useState(false);
+  const [showEnableConfirm, setShowEnableConfirm] = useState(false);
+  const [enableConfirmText, setEnableConfirmText] = useState("");
+  const [enableError, setEnableError] = useState<string | null>(null);
+  const [enabling, setEnabling] = useState(false);
 
   type InactivityAction = "warning" | "delete_due";
   const [showInactivityConfirm, setShowInactivityConfirm] = useState(false);
@@ -192,27 +208,55 @@ export default function CompanyDetailPage({
     };
   }, []);
 
-  useEffect(() => {
-    if (!companyId) return;
-    setLoading(true);
-    setError(null);
-    Promise.all([getCompany(companyId), getCompanyUsage(companyId)])
-      .then(([c, u]) => {
+  const refreshCompanyData = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!companyId) return;
+      if (!opts?.silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const [c, u] = await Promise.all([
+          getCompany(companyId),
+          getCompanyUsage(companyId),
+        ]);
         setCompany(c);
         setUsage(u);
         setEditForm({
-          company_name: c.company_name ?? (c as { companyName?: string }).companyName ?? "",
+          company_name:
+            c.company_name ??
+            (c as { companyName?: string }).companyName ??
+            "",
           industry: valueFrom(c.industry),
           primaryUse: valueFrom(c.primaryUse),
           timeZone: c.timeZone ?? "",
           status: c.status ?? "",
         });
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load company");
-      })
-      .finally(() => setLoading(false));
-  }, [companyId]);
+      } catch (err) {
+        if (!opts?.silent) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load company",
+          );
+        }
+      } finally {
+        if (!opts?.silent) setLoading(false);
+      }
+    },
+    [companyId],
+  );
+
+  useEffect(() => {
+    if (!companyId) return;
+    refreshCompanyData();
+  }, [companyId, refreshCompanyData]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const interval = setInterval(() => {
+      refreshCompanyData({ silent: true });
+    }, REALTIME_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [companyId, refreshCompanyData]);
 
   const fetchProjects = useCallback(async () => {
     if (!companyId) return;
@@ -290,7 +334,8 @@ export default function CompanyDetailPage({
     if (!companyId || !company) return;
     setSaving(true);
     try {
-      const updated = await updateCompany(companyId, editForm);
+      const { status: _status, ...payload } = editForm;
+      const updated = await updateCompany(companyId, payload);
       setCompany({ ...company, ...updated });
       setShowEdit(false);
     } catch (err) {
@@ -313,6 +358,42 @@ export default function CompanyDetailPage({
       );
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (!companyId || !company) return;
+    setDisabling(true);
+    setDisableError(null);
+    try {
+      await updateCompany(companyId, { status: "inactive" });
+      setShowDisableConfirm(false);
+      setDisableConfirmText("");
+      await refreshCompanyData({ silent: true });
+    } catch (err) {
+      setDisableError(
+        err instanceof Error ? err.message : "Failed to disable company",
+      );
+    } finally {
+      setDisabling(false);
+    }
+  };
+
+  const handleEnable = async () => {
+    if (!companyId || !company) return;
+    setEnabling(true);
+    setEnableError(null);
+    try {
+      await updateCompany(companyId, { status: "active" });
+      setShowEnableConfirm(false);
+      setEnableConfirmText("");
+      await refreshCompanyData({ silent: true });
+    } catch (err) {
+      setEnableError(
+        err instanceof Error ? err.message : "Failed to enable company",
+      );
+    } finally {
+      setEnabling(false);
     }
   };
 
@@ -340,24 +421,12 @@ export default function CompanyDetailPage({
       }
 
       // Refresh view data after sending.
-      const [c, u] = await Promise.all([
-        getCompany(companyId),
-        getCompanyUsage(companyId),
-      ]);
-      setCompany(c);
-      setUsage(u);
-      setEditForm({
-        company_name: c.company_name ?? (c as { companyName?: string }).companyName ?? "",
-        industry: valueFrom(c.industry),
-        primaryUse: valueFrom(c.primaryUse),
-        timeZone: c.timeZone ?? "",
-        status: c.status ?? "",
-      });
+      await refreshCompanyData({ silent: true });
     } catch (err) {
       setInactivityError(
         err instanceof Error
           ? err.message
-          : "Failed to send inactivity email"
+          : "Failed to send inactivity email",
       );
     } finally {
       setSendingInactivity(false);
@@ -424,6 +493,32 @@ export default function CompanyDetailPage({
                 >
                   Edit
                 </button>
+                {String(company.status).toLowerCase() === "active" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDisableConfirmText("");
+                      setDisableError(null);
+                      setShowDisableConfirm(true);
+                    }}
+                    className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    Disable
+                  </button>
+                )}
+                {String(company.status).toLowerCase() === "inactive" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEnableConfirmText("");
+                      setEnableError(null);
+                      setShowEnableConfirm(true);
+                    }}
+                    className="rounded-lg border border-emerald-200 px-4 py-2 text-theme-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                  >
+                    Enable
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -883,7 +978,6 @@ export default function CompanyDetailPage({
                 { key: "industry", label: "Industry" },
                 { key: "primaryUse", label: "Primary use" },
                 { key: "timeZone", label: "Time zone" },
-                { key: "status", label: "Status" },
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
@@ -956,6 +1050,126 @@ export default function CompanyDetailPage({
                 {saving ? "Saving…" : "Save"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enable confirm */}
+      {showEnableConfirm && company && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+              Enable {companyName(company)}?
+            </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              Users will regain access to this company dashboard.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                Type {ENABLE_CONFIRM_PHRASE} to confirm
+              </span>
+              <input
+                type="text"
+                value={enableConfirmText}
+                onChange={(e) => setEnableConfirmText(e.target.value)}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                placeholder={ENABLE_CONFIRM_PHRASE}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEnableConfirm(false);
+                  setEnableConfirmText("");
+                  setEnableError(null);
+                }}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleEnable}
+                disabled={
+                  enabling ||
+                  enableConfirmText.trim().toUpperCase() !==
+                    ENABLE_CONFIRM_PHRASE
+                }
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-theme-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {enabling ? "Enabling…" : "Enable company"}
+              </button>
+            </div>
+            {enableError && (
+              <p
+                className="mt-3 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+                role="alert"
+              >
+                {enableError}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Disable confirm */}
+      {showDisableConfirm && company && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <p className="mb-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+              Disable {companyName(company)}?
+            </p>
+            <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+              Users will lose access to this company until it is enabled again.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                Type {DISABLE_CONFIRM_PHRASE} to confirm
+              </span>
+              <input
+                type="text"
+                value={disableConfirmText}
+                onChange={(e) => setDisableConfirmText(e.target.value)}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                placeholder={DISABLE_CONFIRM_PHRASE}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDisableConfirm(false);
+                  setDisableConfirmText("");
+                  setDisableError(null);
+                }}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-theme-sm dark:border-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDisable}
+                disabled={
+                  disabling ||
+                  disableConfirmText.trim().toUpperCase() !==
+                    DISABLE_CONFIRM_PHRASE
+                }
+                className="rounded-lg bg-gray-800 px-4 py-2 text-theme-sm font-medium text-white hover:bg-gray-900 disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600"
+              >
+                {disabling ? "Disabling…" : "Disable company"}
+              </button>
+            </div>
+            {disableError && (
+              <p
+                className="mt-3 rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-800 dark:bg-error-950 dark:text-error-400"
+                role="alert"
+              >
+                {disableError}
+              </p>
+            )}
           </div>
         </div>
       )}

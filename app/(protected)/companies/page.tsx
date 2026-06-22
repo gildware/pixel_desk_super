@@ -13,9 +13,37 @@ import type { PlatformDashboardUseAdminRow } from "@/src/types/platformCatalog.t
 import { EyeIcon, PencilIcon, TrashBinIcon } from "@/src/icons";
 
 const DEFAULT_LIMIT = 20;
+const REALTIME_REFRESH_MS = 15000;
 
 /** Must be typed exactly (case-insensitive) to enable Delete in the confirmation modal. */
 const DELETE_CONFIRM_PHRASE = "DELETE";
+
+const COMPANY_STATUS_OPTIONS = [
+  { value: "pending_approval", label: "Pending approval" },
+  { value: "active", label: "Active (approved)" },
+  { value: "inactive", label: "Disabled" },
+  { value: "suspended", label: "Suspended" },
+] as const;
+
+function companyStatusLabel(status?: string | null): string {
+  const normalized = String(status ?? "").toLowerCase();
+  const match = COMPANY_STATUS_OPTIONS.find((o) => o.value === normalized);
+  return match?.label ?? (status ? String(status) : "—");
+}
+
+function companyStatusBadgeClass(status?: string | null): string {
+  const normalized = String(status ?? "").toLowerCase();
+  if (normalized === "active") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  }
+  if (normalized === "pending_approval") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+  }
+  if (normalized === "inactive" || normalized === "suspended") {
+    return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+  }
+  return "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+}
 
 function labelFrom(field: string | LabelValue | undefined): string {
   if (field == null) return "—";
@@ -123,24 +151,35 @@ export default function CompaniesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchList = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await listCompanies({ page, limit, search: search || undefined });
       setItems(Array.isArray(res?.items) ? res.items : []);
       setTotal(typeof res?.total === "number" ? res.total : 0);
       setTotalPages(typeof res?.totalPages === "number" ? res.totalPages : 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load companies");
-      setItems([]);
+      if (!opts?.silent) {
+        setError(err instanceof Error ? err.message : "Failed to load companies");
+        setItems([]);
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [page, limit, search]);
 
   useEffect(() => {
     fetchList();
+  }, [fetchList]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchList({ silent: true });
+    }, REALTIME_REFRESH_MS);
+    return () => clearInterval(interval);
   }, [fetchList]);
 
   useEffect(() => {
@@ -177,7 +216,6 @@ export default function CompaniesPage() {
       industry: valueFrom(company.industry),
       primaryUse: valueFrom(company.primaryUse),
       timeZone: company.timeZone ?? "",
-      status: company.status ?? "",
     });
   };
 
@@ -343,16 +381,8 @@ export default function CompaniesPage() {
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
                         {c.status ? (
-                          <span
-                            className={
-                              String(c.status).toLowerCase() === "active"
-                                ? "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                            }
-                          >
-                            {String(c.status).toLowerCase() === "active"
-                              ? "Active"
-                              : c.status}
+                          <span className={companyStatusBadgeClass(c.status)}>
+                            {companyStatusLabel(c.status)}
                           </span>
                         ) : (
                           <span className="text-gray-500 dark:text-gray-400">—</span>
@@ -529,19 +559,6 @@ export default function CompaniesPage() {
                   value={editForm.timeZone ?? ""}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, timeZone: e.target.value }))
-                  }
-                  className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-theme-xs font-medium text-gray-700 dark:text-gray-300">
-                  Status
-                </label>
-                <input
-                  type="text"
-                  value={editForm.status ?? ""}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, status: e.target.value }))
                   }
                   className="h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
                 />

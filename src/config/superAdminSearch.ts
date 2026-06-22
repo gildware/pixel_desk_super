@@ -22,6 +22,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-company-requests",
+    title: "New company requests",
+    message: "Review and approve new company registrations.",
+    href: "/company-requests",
+    kind: "menu",
+  },
+  {
     id: "menu-helpdesk",
     title: "Helpdesk",
     message: "Read and reply to helpdesk requests from dashboard users.",

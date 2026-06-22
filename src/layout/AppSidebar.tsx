@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSidebar } from "@/src/context/SidebarContext";
 import { useBranding } from "@/src/context/BrandingContext";
 import {
+  CheckCircleIcon,
   GridIcon,
   TableIcon,
   UserIcon,
@@ -27,6 +28,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { Icon: GridIcon, name: "Dashboard", path: "/dashboard" },
   { Icon: TableIcon, name: "Companies", path: "/companies" },
+  { Icon: CheckCircleIcon, name: "New company requests", path: "/company-requests" },
   { Icon: BellIcon, name: "Notifications", path: "/notifications" },
   { Icon: MailIcon, name: "Helpdesk", path: "/helpdesk" },
   { Icon: UserIcon, name: "Users", path: "/users" },
