@@ -202,12 +202,12 @@ function FaqQuestionRow({
   idx: number;
   reordering: boolean;
   dragHandleProps: ReturnType<
-    ReturnType<typeof useCatalogDragReorder>["dragHandleProps"]
-  >;
+    typeof useCatalogDragReorder
+  >["dragHandleProps"];
   rowClassName: string;
   rowDragProps: ReturnType<
-    ReturnType<typeof useCatalogDragReorder>["rowDragProps"]
-  >;
+    typeof useCatalogDragReorder
+  >["rowDragProps"];
   onToggleActive: (row: PlatformFaqRow, next: boolean) => void;
   onEdit: (row: PlatformFaqRow) => void;
   onDelete: (row: PlatformFaqRow) => void;
