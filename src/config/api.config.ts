@@ -32,6 +32,7 @@ export const apiConfig = {
     notificationsMarkAllRead: `${API_BASE}/super-admin/notifications/mark-all-read`,
     notificationRead: (id: string) => `${API_BASE}/super-admin/notifications/${id}/read`,
     companies: `${API_BASE}/super-admin/companies`,
+    auditLogs: `${API_BASE}/super-admin/audit-logs`,
     companyById: (id: string) => `${API_BASE}/super-admin/companies/${id}`,
     companyUsage: (id: string) => `${API_BASE}/super-admin/companies/${id}/usage`,
     companyEmployees: (id: string) => `${API_BASE}/super-admin/companies/${id}/employees`,

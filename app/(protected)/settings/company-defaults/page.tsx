@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchPlatformDefaultsOverview,
   patchPlatformBootstrap,
@@ -29,6 +29,9 @@ import type {
   PlatformDefaultRow,
 } from "@/src/types/platformDefaults.types";
 import CompanyDefaultRolesTab from "@/src/components/company-defaults/CompanyDefaultRolesTab";
+import CompanyDefaultSortableTable, {
+  sortRows,
+} from "@/src/components/company-defaults/CompanyDefaultSortableTable";
 import CompanyDefaultWidgetsTab from "@/src/components/company-defaults/CompanyDefaultWidgetsTab";
 
 const inputClass =
@@ -87,9 +90,36 @@ type TabId =
   | "defaultRoles"
   | "widgets";
 
+const VALID_TABS: TabId[] = [
+  "bootstrap",
+  "weekendDefaults",
+  "contractModels",
+  "departments",
+  "designations",
+  "activities",
+  "leaveTypes",
+  "defaultRoles",
+  "widgets",
+];
+
+function parseTab(raw: string | null): TabId {
+  if (raw && VALID_TABS.includes(raw as TabId)) {
+    return raw as TabId;
+  }
+  return "bootstrap";
+}
+
 export default function CompanyDefaultsPage() {
-  const [tab, setTab] = useState<TabId>("bootstrap");
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const tab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
+
+  const setTab = useCallback(
+    (next: TabId) => {
+      router.replace(`/settings/company-defaults?tab=${next}`, { scroll: false });
+    },
+    [router],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -145,7 +175,6 @@ export default function CompanyDefaultsPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newShort, setNewShort] = useState("");
-  const [newSort, setNewSort] = useState(0);
 
   const loadOverview = useCallback(async () => {
     const o = await fetchPlatformDefaultsOverview();
@@ -167,31 +196,14 @@ export default function CompanyDefaultsPage() {
   }, [loadOverview]);
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (
-      tabParam === "bootstrap" ||
-      tabParam === "weekendDefaults" ||
-      tabParam === "contractModels" ||
-      tabParam === "departments" ||
-      tabParam === "designations" ||
-      tabParam === "activities" ||
-      tabParam === "leaveTypes" ||
-      tabParam === "defaultRoles" ||
-      tabParam === "widgets"
-    ) {
-      setTab(tabParam);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
     if (tab === "bootstrap" || tab === "contractModels" || loading) return;
     setError(null);
     const run = async () => {
       try {
-        if (tab === "departments") setDepartments(await listPlatformDepartments());
-        if (tab === "designations") setDesignations(await listPlatformDesignations());
-        if (tab === "activities") setActivities(await listPlatformActivityTypes());
-        if (tab === "leaveTypes") setLeaveTypes(await listPlatformLeaveTypes());
+        if (tab === "departments") setDepartments(sortRows(await listPlatformDepartments()));
+        if (tab === "designations") setDesignations(sortRows(await listPlatformDesignations()));
+        if (tab === "activities") setActivities(sortRows(await listPlatformActivityTypes()));
+        if (tab === "leaveTypes") setLeaveTypes(sortRows(await listPlatformLeaveTypes()));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load tab data");
       }
@@ -330,6 +342,50 @@ export default function CompanyDefaultsPage() {
     }
   };
 
+  const nextSortOrder = (rows: { sortOrder: number }[]) => {
+    if (!rows.length) return 0;
+    return Math.max(...rows.map((r) => r.sortOrder)) + 1;
+  };
+
+  const persistReorder = async <T extends PlatformDefaultRow | PlatformDefaultLeaveTypeRow>(
+    reordered: T[],
+    updateFn: (id: string, sortOrder: number) => Promise<T>,
+    setRows: React.Dispatch<React.SetStateAction<T[]>>,
+  ) => {
+    const previous = reordered;
+    const withNewOrder = reordered.map((row, index) => ({ ...row, sortOrder: index }));
+    setRows(withNewOrder);
+    try {
+      const updated = await Promise.all(
+        withNewOrder.map((row) => updateFn(row.id, row.sortOrder)),
+      );
+      setRows(sortRows(updated));
+    } catch (e) {
+      setRows(previous);
+      throw e;
+    }
+  };
+
+  const updateSimpleRow = async (
+    kind: "departments" | "designations" | "activities",
+    id: string,
+    body: Partial<Pick<PlatformDefaultRow, "name" | "description" | "isActive">>,
+  ) => {
+    if (kind === "departments") {
+      const updated = await updatePlatformDepartment(id, body);
+      setDepartments((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      return updated;
+    }
+    if (kind === "designations") {
+      const updated = await updatePlatformDesignation(id, body);
+      setDesignations((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      return updated;
+    }
+    const updated = await updatePlatformActivityType(id, body);
+    setActivities((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  };
+
   const addSimpleRow = async (kind: "departments" | "designations" | "activities") => {
     if (!newName.trim()) return;
     try {
@@ -337,27 +393,26 @@ export default function CompanyDefaultsPage() {
         const r = await createPlatformDepartment({
           name: newName,
           description: newDesc,
-          sortOrder: newSort,
+          sortOrder: nextSortOrder(departments),
         });
-        setDepartments((p) => [...p, r]);
+        setDepartments((p) => sortRows([...p, r]));
       } else if (kind === "designations") {
         const r = await createPlatformDesignation({
           name: newName,
           description: newDesc,
-          sortOrder: newSort,
+          sortOrder: nextSortOrder(designations),
         });
-        setDesignations((p) => [...p, r]);
+        setDesignations((p) => sortRows([...p, r]));
       } else {
         const r = await createPlatformActivityType({
           name: newName,
           description: newDesc || null,
-          sortOrder: newSort,
+          sortOrder: nextSortOrder(activities),
         });
-        setActivities((p) => [...p, r]);
+        setActivities((p) => sortRows([...p, r]));
       }
       setNewName("");
       setNewDesc("");
-      setNewSort(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed");
     }
@@ -370,13 +425,12 @@ export default function CompanyDefaultsPage() {
         name: newName,
         shortName: newShort,
         description: newDesc || null,
-        sortOrder: newSort,
+        sortOrder: nextSortOrder(leaveTypes),
       });
-      setLeaveTypes((p) => [...p, r]);
+      setLeaveTypes((p) => sortRows([...p, r]));
       setNewName("");
       setNewShort("");
       setNewDesc("");
-      setNewSort(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed");
     }
@@ -810,9 +864,10 @@ export default function CompanyDefaultsPage() {
           )}
 
           {tab === "departments" && (
-            <TemplateTable
+            <CompanyDefaultSortableTable
               title="Department templates"
               rows={departments}
+              onError={setError}
               onToggle={(row, v) => toggleActive("departments", row, v)}
               onDelete={async (id) => {
                 openConfirm("Delete this template?", async () => {
@@ -820,7 +875,12 @@ export default function CompanyDefaultsPage() {
                   setDepartments((p) => p.filter((r) => r.id !== id));
                 });
               }}
-              extraColumns={null}
+              onUpdate={(id, body) => updateSimpleRow("departments", id, body)}
+              onReorder={(reordered) =>
+                persistReorder(reordered, (id, sortOrder) =>
+                  updatePlatformDepartment(id, { sortOrder }),
+                setDepartments)
+              }
               renderAdd={() => (
                 <div className="mb-4 flex flex-wrap items-end gap-2">
                   <label className="min-w-[140px]">
@@ -841,17 +901,6 @@ export default function CompanyDefaultsPage() {
                       className={inputClass}
                       value={newDesc}
                       onChange={(e) => setNewDesc(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Sort
-                    </span>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={newSort}
-                      onChange={(e) => setNewSort(Number(e.target.value))}
                     />
                   </label>
                   <button
@@ -867,9 +916,10 @@ export default function CompanyDefaultsPage() {
           )}
 
           {tab === "designations" && (
-            <TemplateTable
+            <CompanyDefaultSortableTable
               title="Designation templates"
               rows={designations}
+              onError={setError}
               onToggle={(row, v) => toggleActive("designations", row, v)}
               onDelete={async (id) => {
                 openConfirm("Delete this template?", async () => {
@@ -877,7 +927,12 @@ export default function CompanyDefaultsPage() {
                   setDesignations((p) => p.filter((r) => r.id !== id));
                 });
               }}
-              extraColumns={null}
+              onUpdate={(id, body) => updateSimpleRow("designations", id, body)}
+              onReorder={(reordered) =>
+                persistReorder(reordered, (id, sortOrder) =>
+                  updatePlatformDesignation(id, { sortOrder }),
+                setDesignations)
+              }
               renderAdd={() => (
                 <div className="mb-4 flex flex-wrap items-end gap-2">
                   <label className="min-w-[140px]">
@@ -898,17 +953,6 @@ export default function CompanyDefaultsPage() {
                       className={inputClass}
                       value={newDesc}
                       onChange={(e) => setNewDesc(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Sort
-                    </span>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={newSort}
-                      onChange={(e) => setNewSort(Number(e.target.value))}
                     />
                   </label>
                   <button
@@ -924,9 +968,10 @@ export default function CompanyDefaultsPage() {
           )}
 
           {tab === "activities" && (
-            <TemplateTable
+            <CompanyDefaultSortableTable
               title="Timesheet activity types"
               rows={activities}
+              onError={setError}
               onToggle={(row, v) => toggleActive("activities", row, v)}
               onDelete={async (id) => {
                 openConfirm("Delete this template?", async () => {
@@ -934,7 +979,12 @@ export default function CompanyDefaultsPage() {
                   setActivities((p) => p.filter((r) => r.id !== id));
                 });
               }}
-              extraColumns={null}
+              onUpdate={(id, body) => updateSimpleRow("activities", id, body)}
+              onReorder={(reordered) =>
+                persistReorder(reordered, (id, sortOrder) =>
+                  updatePlatformActivityType(id, { sortOrder }),
+                setActivities)
+              }
               renderAdd={() => (
                 <div className="mb-4 flex flex-wrap items-end gap-2">
                   <label className="min-w-[140px]">
@@ -957,17 +1007,6 @@ export default function CompanyDefaultsPage() {
                       onChange={(e) => setNewDesc(e.target.value)}
                     />
                   </label>
-                  <label>
-                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                      Sort
-                    </span>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={newSort}
-                      onChange={(e) => setNewSort(Number(e.target.value))}
-                    />
-                  </label>
                   <button
                     type="button"
                     onClick={() => addSimpleRow("activities")}
@@ -981,102 +1020,72 @@ export default function CompanyDefaultsPage() {
           )}
 
           {tab === "leaveTypes" && (
-            <div>
-              <p className="mb-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                Leave type templates
-              </p>
-              <div className="mb-4 flex flex-wrap items-end gap-2">
-                <label className="min-w-[120px]">
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Name
-                  </span>
-                  <input
-                    className={inputClass}
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                  />
-                </label>
-                <label className="min-w-[100px]">
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Short
-                  </span>
-                  <input
-                    className={inputClass}
-                    value={newShort}
-                    onChange={(e) => setNewShort(e.target.value)}
-                  />
-                </label>
-                <label className="min-w-[160px] flex-1">
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Description
-                  </span>
-                  <input
-                    className={inputClass}
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Sort
-                  </span>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    value={newSort}
-                    onChange={(e) => setNewSort(Number(e.target.value))}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={addLeaveType}
-                  className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white hover:bg-brand-600"
-                >
-                  Add
-                </button>
-              </div>
-              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
-                <table className="min-w-full text-left text-theme-sm text-gray-800 dark:text-white/90">
-                  <thead className="bg-gray-50 text-theme-xs uppercase dark:bg-white/[0.04]">
-                    <tr>
-                      <th className="px-3 py-2">Name</th>
-                      <th className="px-3 py-2">Short</th>
-                      <th className="px-3 py-2">Active</th>
-                      <th className="px-3 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaveTypes.map((row) => (
-                      <tr key={row.id} className="border-t border-gray-200 dark:border-gray-800">
-                        <td className="px-3 py-2">{row.name}</td>
-                        <td className="px-3 py-2">{row.shortName}</td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={row.isActive}
-                            onChange={(e) => toggleActive("leaveTypes", row, e.target.checked)}
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            className="text-error-600 dark:text-error-400"
-                            onClick={async () => {
-                              openConfirm("Delete?", async () => {
-                                await deletePlatformLeaveType(row.id);
-                                setLeaveTypes((p) => p.filter((r) => r.id !== row.id));
-                              });
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <CompanyDefaultSortableTable
+              title="Leave type templates"
+              variant="leaveType"
+              rows={leaveTypes}
+              onError={setError}
+              onToggle={(row, v) => toggleActive("leaveTypes", row, v)}
+              onDelete={async (id) => {
+                openConfirm("Delete this template?", async () => {
+                  await deletePlatformLeaveType(id);
+                  setLeaveTypes((p) => p.filter((r) => r.id !== id));
+                });
+              }}
+              onUpdate={async (id, body) => {
+                const updated = await updatePlatformLeaveType(id, body);
+                setLeaveTypes((prev) => prev.map((r) => (r.id === id ? updated : r)));
+                return updated;
+              }}
+              onReorder={(reordered) =>
+                persistReorder(
+                  reordered as PlatformDefaultLeaveTypeRow[],
+                  (id, sortOrder) => updatePlatformLeaveType(id, { sortOrder }),
+                  setLeaveTypes,
+                )
+              }
+              renderAdd={() => (
+                <div className="mb-4 flex flex-wrap items-end gap-2">
+                  <label className="min-w-[120px]">
+                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
+                      Name
+                    </span>
+                    <input
+                      className={inputClass}
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                    />
+                  </label>
+                  <label className="min-w-[100px]">
+                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
+                      Short
+                    </span>
+                    <input
+                      className={inputClass}
+                      value={newShort}
+                      onChange={(e) => setNewShort(e.target.value)}
+                    />
+                  </label>
+                  <label className="min-w-[160px] flex-1">
+                    <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
+                      Description
+                    </span>
+                    <input
+                      className={inputClass}
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addLeaveType}
+                    className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white hover:bg-brand-600"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            />
           )}
 
           {tab === "defaultRoles" && <CompanyDefaultRolesTab />}
@@ -1123,69 +1132,5 @@ export default function CompanyDefaultsPage() {
         </div>
       )}
     </>
-  );
-}
-
-function TemplateTable({
-  title,
-  rows,
-  onToggle,
-  onDelete,
-  renderAdd,
-  extraColumns,
-}: {
-  title: string;
-  rows: PlatformDefaultRow[];
-  onToggle: (row: PlatformDefaultRow, v: boolean) => void;
-  onDelete: (id: string) => Promise<void>;
-  renderAdd: () => React.ReactNode;
-  extraColumns: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="mb-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{title}</p>
-      {renderAdd()}
-      {extraColumns}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
-        <table className="min-w-full text-left text-theme-sm text-gray-800 dark:text-white/90">
-          <thead className="bg-gray-50 text-theme-xs uppercase dark:bg-white/[0.04]">
-            <tr>
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Description</th>
-              <th className="px-3 py-2">Sort</th>
-              <th className="px-3 py-2">Active</th>
-              <th className="px-3 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-t border-gray-200 dark:border-gray-800">
-                <td className="px-3 py-2">{row.name}</td>
-                <td className="px-3 py-2 max-w-xs truncate text-gray-600 dark:text-gray-400">
-                  {row.description ?? ""}
-                </td>
-                <td className="px-3 py-2">{row.sortOrder}</td>
-                <td className="px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={row.isActive}
-                    onChange={(e) => onToggle(row, e.target.checked)}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <button
-                    type="button"
-                    className="text-error-600 dark:text-error-400"
-                    onClick={() => onDelete(row.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
   );
 }

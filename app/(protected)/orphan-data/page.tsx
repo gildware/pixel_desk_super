@@ -16,6 +16,7 @@ import {
   fetchOrphanProjects,
   fetchOrphanUsers,
 } from "@/src/services/api/orphanData.api";
+import { getSafeExternalHref } from "@/src/utils/safeUrl";
 import type {
   OrphanClientItem,
   OrphanDataTabId,
@@ -435,6 +436,7 @@ function OrphanDataPageInner() {
                   (rows as OrphanFileUploadItem[]).map((row, idx) => {
                     const id = typeof row?.id === "string" ? row.id : `row-${idx}`;
                     const url = typeof row?.url === "string" ? row.url : "";
+                    const safeUrl = getSafeExternalHref(url);
                     const filename = typeof row?.filename === "string" ? row.filename : "—";
                     const mimetype = typeof row?.mimetype === "string" ? row.mimetype : "—";
                     const size = typeof row?.size === "number" ? row.size : 0;
@@ -465,14 +467,14 @@ function OrphanDataPageInner() {
                           {safeLocaleDate(row?.createdAt)}
                         </td>
                         <td className="px-4 py-3 text-theme-xs">
-                          {url ? (
+                          {safeUrl ? (
                             <a
-                              href={url}
+                              href={safeUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-brand-600 hover:underline break-all max-w-md inline-block dark:text-brand-400"
                             >
-                              {url.length > 80 ? `${url.slice(0, 80)}…` : url}
+                              {safeUrl.length > 80 ? `${safeUrl.slice(0, 80)}…` : safeUrl}
                             </a>
                           ) : (
                             <span className="text-gray-400">—</span>

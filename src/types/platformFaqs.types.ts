@@ -5,6 +5,7 @@ export type PlatformFaqRow = {
   answer: string;
   isActive: boolean;
   sortOrder: number;
+  categorySortOrder: number;
   createdAt: string;
   updatedAt: string;
 };

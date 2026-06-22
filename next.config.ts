@@ -1,15 +1,12 @@
 import type { NextConfig } from "next";
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-const useProxy = process.env.NEXT_PUBLIC_USE_API_PROXY === "true" && apiUrl.startsWith("http");
+import { SECURITY_HEADERS } from "./src/config/securityHeaders";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    if (!useProxy) return [];
+  async headers() {
     return [
       {
-        source: "/api/proxy/:path*",
-        destination: `${apiUrl}/:path*`,
+        source: "/:path*",
+        headers: [...SECURITY_HEADERS],
       },
     ];
   },

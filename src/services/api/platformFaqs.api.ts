@@ -38,7 +38,12 @@ export async function updatePlatformFaq(
   body: Partial<
     Pick<
       PlatformFaqRow,
-      "category" | "question" | "answer" | "isActive" | "sortOrder"
+      | "category"
+      | "question"
+      | "answer"
+      | "isActive"
+      | "sortOrder"
+      | "categorySortOrder"
     >
   >,
 ): Promise<PlatformFaqRow> {

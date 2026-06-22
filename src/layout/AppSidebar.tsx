@@ -20,23 +20,24 @@ import {
 
 type NavItem = {
   name: string;
-  icon: React.ReactNode;
+  Icon: React.ComponentType;
   path: string;
 };
 
 const navItems: NavItem[] = [
-  { icon: <GridIcon />, name: "Dashboard", path: "/dashboard" },
-  { icon: <TableIcon />, name: "Companies", path: "/companies" },
-  { icon: <BellIcon />, name: "Notifications", path: "/notifications" },
-  { icon: <MailIcon />, name: "Helpdesk", path: "/helpdesk" },
-  { icon: <UserIcon />, name: "Users", path: "/users" },
-  { icon: <ListIcon />, name: "Company defaults", path: "/settings/company-defaults" },
-  { icon: <ListIcon />, name: "Platform catalog", path: "/settings/platform-catalog" },
-  { icon: <DocsIcon />, name: "HelpDesk FAQs", path: "/settings/faqs" },
-  { icon: <TimeIcon />, name: "Settings", path: "/settings" },
-  { icon: <BoxCubeIcon />, name: "Website settings", path: "/settings/website" },
-  { icon: <MailIcon />, name: "Email configurations", path: "/settings/email-configurations" },
-  { icon: <FileIcon />, name: "Orphan data", path: "/orphan-data" },
+  { Icon: GridIcon, name: "Dashboard", path: "/dashboard" },
+  { Icon: TableIcon, name: "Companies", path: "/companies" },
+  { Icon: BellIcon, name: "Notifications", path: "/notifications" },
+  { Icon: MailIcon, name: "Helpdesk", path: "/helpdesk" },
+  { Icon: UserIcon, name: "Users", path: "/users" },
+  { Icon: TimeIcon, name: "Audit logs", path: "/audit-logs" },
+  { Icon: ListIcon, name: "Company defaults", path: "/settings/company-defaults" },
+  { Icon: ListIcon, name: "Platform catalog", path: "/settings/platform-catalog" },
+  { Icon: DocsIcon, name: "HelpDesk FAQs", path: "/settings/faqs" },
+  { Icon: TimeIcon, name: "Settings", path: "/settings" },
+  { Icon: BoxCubeIcon, name: "Website settings", path: "/settings/website" },
+  { Icon: MailIcon, name: "Email configurations", path: "/settings/email-configurations" },
+  { Icon: FileIcon, name: "Orphan data", path: "/orphan-data" },
 ];
 
 const AppSidebar: React.FC = () => {
@@ -108,8 +109,10 @@ const AppSidebar: React.FC = () => {
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <ul className="flex flex-col gap-4">
-            {navItems.map((nav) => (
-              <li key={nav.name}>
+            {navItems.map((nav) => {
+              const NavIcon = nav.Icon;
+              return (
+              <li key={nav.path}>
                 <Link
                   href={nav.path}
                   className={`menu-item group ${
@@ -123,14 +126,15 @@ const AppSidebar: React.FC = () => {
                         : "menu-item-icon-inactive"
                     }
                   >
-                    {nav.icon}
+                    <NavIcon />
                   </span>
                   {(isExpanded || isHovered || isMobileOpen) && (
                     <span className="menu-item-text">{nav.name}</span>
                   )}
                 </Link>
               </li>
-            ))}
+            );
+            })}
           </ul>
         </nav>
       </div>

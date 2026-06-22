@@ -1,4 +1,5 @@
 import { apiConfig } from "@/src/config/api.config";
+import { csrfHeadersForMethod } from "@/src/utils/csrf";
 
 type RequestInitWithBody = Omit<RequestInit, "body"> & { body?: object };
 
@@ -16,7 +17,10 @@ async function postRefresh(): Promise<boolean> {
   const res = await fetch(refreshUrl, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...csrfHeadersForMethod("POST"),
+    },
   });
   return res.ok;
 }
@@ -28,8 +32,10 @@ async function request<T>(
 ): Promise<T> {
   const { body, headers: customHeaders, ...rest } = options;
 
+  const method = (rest.method as string | undefined) ?? "GET";
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    ...csrfHeadersForMethod(method),
     ...(customHeaders as HeadersInit),
   };
 

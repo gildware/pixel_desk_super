@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   listPlatformIndustriesAdmin,
   createPlatformIndustryAdmin,
@@ -30,6 +30,15 @@ import type {
   PlatformSkillCategoryAdminRow,
 } from "@/src/types/platformCatalog.types";
 import { CloseIcon } from "@/src/icons/index";
+import {
+  CatalogDragHandle,
+  useCatalogDragReorder,
+} from "@/src/components/platform-catalog/CatalogDragHandle";
+import {
+  nextSortOrder,
+  persistSortReorder,
+  sortByOrder,
+} from "@/src/components/platform-catalog/catalogSortUtils";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90";
@@ -88,9 +97,26 @@ const skillsetsPanelSplitClass = industriesPanelRowSplitClass;
 
 type TabId = "industries" | "dashboardUses" | "skillsets";
 
+const VALID_TABS: TabId[] = ["industries", "dashboardUses", "skillsets"];
+
+function parseTab(raw: string | null): TabId {
+  if (raw && VALID_TABS.includes(raw as TabId)) {
+    return raw as TabId;
+  }
+  return "industries";
+}
+
 export default function PlatformCatalogPage() {
-  const [tab, setTab] = useState<TabId>("industries");
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const tab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
+
+  const setTab = useCallback(
+    (next: TabId) => {
+      router.replace(`/settings/platform-catalog?tab=${next}`, { scroll: false });
+    },
+    [router],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,12 +159,28 @@ export default function PlatformCatalogPage() {
   const [dashboardUses, setDashboardUses] = useState<PlatformDashboardUseAdminRow[]>([]);
   const [skillCategories, setSkillCategories] = useState<PlatformSkillCategoryAdminRow[]>([]);
 
-  const [newIndustry, setNewIndustry] = useState({ label: "", sortOrder: 0 });
-  const [newUse, setNewUse] = useState({ label: "", value: "", sortOrder: 0 });
-  const [newCategory, setNewCategory] = useState({ name: "", sortOrder: 0 });
+  const [newIndustry, setNewIndustry] = useState({ label: "" });
+  const [newUse, setNewUse] = useState({ label: "" });
+  const [newCategory, setNewCategory] = useState({ name: "" });
   const [newSkillByCategory, setNewSkillByCategory] = useState<Record<string, string>>({});
   const [selectedIndustryId, setSelectedIndustryId] = useState<string | null>(null);
   const [selectedSkillCategoryId, setSelectedSkillCategoryId] = useState<string | null>(null);
+
+  const [editingIndustry, setEditingIndustry] = useState<PlatformIndustryAdminRow | null>(null);
+  const [editingDashboardUse, setEditingDashboardUse] = useState<PlatformDashboardUseAdminRow | null>(
+    null,
+  );
+  const [editingSkillCategory, setEditingSkillCategory] =
+    useState<PlatformSkillCategoryAdminRow | null>(null);
+  const [editingSkill, setEditingSkill] = useState<{
+    categoryId: string;
+    skill: PlatformSkillAdminRow;
+  } | null>(null);
+  const [editingProjectType, setEditingProjectType] = useState<{
+    industryId: string;
+    pt: PlatformIndustryProjectTypeRow;
+  } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadTab = useCallback(async () => {
     if (tab === "industries") {
@@ -157,13 +199,6 @@ export default function PlatformCatalogPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [loadTab]);
-
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "industries" || tabParam === "dashboardUses" || tabParam === "skillsets") {
-      setTab(tabParam);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (tab !== "industries") setSelectedIndustryId(null);
@@ -200,13 +235,11 @@ export default function PlatformCatalogPage() {
     }
   }, [tab, skillCategories, selectedSkillCategoryId]);
 
-  const industriesSorted = [...industries].sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
-  );
+  const industriesSorted = sortByOrder(industries, (a, b) => a.label.localeCompare(b.label));
 
-  const skillCategoriesSorted = [...skillCategories].sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
-  );
+  const dashboardUsesSorted = sortByOrder(dashboardUses, (a, b) => a.label.localeCompare(b.label));
+
+  const skillCategoriesSorted = sortByOrder(skillCategories, (a, b) => a.name.localeCompare(b.name));
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "industries", label: "Industries" },
@@ -214,28 +247,128 @@ export default function PlatformCatalogPage() {
     { id: "skillsets", label: "Skillsets" },
   ];
 
-  const patchIndustryLocal = (id: string, patch: Partial<PlatformIndustryAdminRow>) => {
-    setIndustries((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  };
+  const reorderIndustries = useCallback(
+    async (reordered: PlatformIndustryAdminRow[]) => {
+      await persistSortReorder(
+        reordered,
+        (id, sortOrder) => updatePlatformIndustryAdmin(id, { sortOrder }),
+        (rows) => setIndustries(rows),
+        (rows) => sortByOrder(rows, (a, b) => a.label.localeCompare(b.label)),
+      );
+    },
+    [],
+  );
 
-  const patchPtLocal = (
-    industryId: string,
-    ptId: string,
-    patch: Partial<PlatformIndustryProjectTypeRow>,
-  ) => {
-    setIndustries((prev) =>
-      prev.map((ind) =>
-        ind.id === industryId
-          ? {
-              ...ind,
-              projectTypes: (ind.projectTypes ?? []).map((p) =>
-                p.id === ptId ? { ...p, ...patch } : p,
-              ),
-            }
-          : ind,
-      ),
-    );
-  };
+  const reorderDashboardUses = useCallback(
+    async (reordered: PlatformDashboardUseAdminRow[]) => {
+      await persistSortReorder(
+        reordered,
+        (id, sortOrder) => updatePlatformDashboardUseAdmin(id, { sortOrder }),
+        (rows) => setDashboardUses(rows),
+        (rows) => sortByOrder(rows, (a, b) => a.label.localeCompare(b.label)),
+      );
+    },
+    [],
+  );
+
+  const reorderSkillCategories = useCallback(
+    async (reordered: PlatformSkillCategoryAdminRow[]) => {
+      await persistSortReorder(
+        reordered,
+        (id, sortOrder) => updatePlatformSkillCategoryAdmin(id, { sortOrder }),
+        (rows) => setSkillCategories(rows),
+        (rows) => sortByOrder(rows, (a, b) => a.name.localeCompare(b.name)),
+      );
+    },
+    [],
+  );
+
+  const reorderProjectTypes = useCallback(
+    async (industryId: string, reordered: PlatformIndustryProjectTypeRow[]) => {
+      const previous = industries.find((i) => i.id === industryId)?.projectTypes ?? [];
+      const withNewOrder = reordered.map((row, index) => ({ ...row, sortOrder: index }));
+      setIndustries((prev) =>
+        prev.map((ind) =>
+          ind.id === industryId ? { ...ind, projectTypes: withNewOrder } : ind,
+        ),
+      );
+      try {
+        const updated = await Promise.all(
+          withNewOrder.map((row) =>
+            updateIndustryProjectTypeAdmin(row.id, { sortOrder: row.sortOrder }),
+          ),
+        );
+        setIndustries((prev) =>
+          prev.map((ind) =>
+            ind.id === industryId
+              ? {
+                  ...ind,
+                  projectTypes: sortByOrder(updated, (a, b) =>
+                    displayProjectTypeLabel(a).localeCompare(displayProjectTypeLabel(b)),
+                  ),
+                }
+              : ind,
+          ),
+        );
+      } catch (e) {
+        setIndustries((prev) =>
+          prev.map((ind) =>
+            ind.id === industryId ? { ...ind, projectTypes: previous } : ind,
+          ),
+        );
+        throw e;
+      }
+    },
+    [industries],
+  );
+
+  const reorderSkills = useCallback(
+    async (categoryId: string, reordered: PlatformSkillAdminRow[]) => {
+      const previous =
+        skillCategories.find((c) => c.id === categoryId)?.skills ?? [];
+      const withNewOrder = reordered.map((row, index) => ({ ...row, sortOrder: index }));
+      setSkillCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, skills: withNewOrder } : cat,
+        ),
+      );
+      try {
+        const updated = await Promise.all(
+          withNewOrder.map((row) => updatePlatformSkillAdmin(row.id, { sortOrder: row.sortOrder })),
+        );
+        setSkillCategories((prev) =>
+          prev.map((cat) =>
+            cat.id === categoryId
+              ? {
+                  ...cat,
+                  skills: sortByOrder(updated, (a, b) => a.name.localeCompare(b.name)),
+                }
+              : cat,
+          ),
+        );
+      } catch (e) {
+        setSkillCategories((prev) =>
+          prev.map((cat) =>
+            cat.id === categoryId ? { ...cat, skills: previous } : cat,
+          ),
+        );
+        throw e;
+      }
+    },
+    [skillCategories],
+  );
+
+  const industryDrag = useCatalogDragReorder(industriesSorted, reorderIndustries, setError);
+  const dashboardDrag = useCatalogDragReorder(
+    dashboardUsesSorted,
+    reorderDashboardUses,
+    setError,
+  );
+  const skillCategoryDrag = useCatalogDragReorder(
+    skillCategoriesSorted,
+    reorderSkillCategories,
+    setError,
+  );
 
   return (
     <>
@@ -290,19 +423,6 @@ export default function PlatformCatalogPage() {
                     onChange={(e) => setNewIndustry((s) => ({ ...s, label: e.target.value }))}
                   />
                 </label>
-                <label>
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Sort
-                  </span>
-                  <input
-                    type="number"
-                    className={inputClass + " w-24"}
-                    value={newIndustry.sortOrder}
-                    onChange={(e) =>
-                      setNewIndustry((s) => ({ ...s, sortOrder: Number(e.target.value) }))
-                    }
-                  />
-                </label>
                 <button
                   type="button"
                   className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white hover:bg-brand-600"
@@ -312,11 +432,13 @@ export default function PlatformCatalogPage() {
                       const r = await createPlatformIndustryAdmin({
                         label: newIndustry.label.trim(),
                         value: slugifyIndustryValue(newIndustry.label),
-                        sortOrder: newIndustry.sortOrder,
+                        sortOrder: nextSortOrder(industries),
                       });
                       const row = { ...r, projectTypes: [] as PlatformIndustryProjectTypeRow[] };
-                      setIndustries((p) => [...p, row]);
-                      setNewIndustry({ label: "", sortOrder: 0 });
+                      setIndustries((p) =>
+                        sortByOrder([...p, row], (a, b) => a.label.localeCompare(b.label)),
+                      );
+                      setNewIndustry({ label: "" });
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Create failed");
                     }
@@ -345,17 +467,18 @@ export default function PlatformCatalogPage() {
                         <table className="w-full min-w-[36rem] border-collapse text-left text-theme-sm text-gray-800 dark:text-white/90">
                           <thead className="sticky top-0 bg-gray-50 text-theme-xs uppercase text-gray-600 dark:bg-white/[0.06] dark:text-gray-400">
                             <tr>
+                              <th className="w-10 border-b border-gray-200 px-2 py-2.5 dark:border-gray-800" aria-label="Reorder" />
                               <th className="border-b border-gray-200 px-4 py-2.5 dark:border-gray-800">
                                 Label
                               </th>
                               <th className="border-b border-gray-200 px-4 py-2.5 dark:border-gray-800">
                                 Project types
                               </th>
-                              <th className="border-b border-gray-200 px-4 py-2.5 dark:border-gray-800 w-20">
-                                Sort
-                              </th>
                               <th className="border-b border-gray-200 px-4 py-2.5 dark:border-gray-800 w-24">
                                 Status
+                              </th>
+                              <th className="border-b border-gray-200 px-4 py-2.5 dark:border-gray-800 w-36">
+                                Actions
                               </th>
                             </tr>
                           </thead>
@@ -363,31 +486,70 @@ export default function PlatformCatalogPage() {
                             {industriesSorted.map((ind) => (
                               <tr
                                 key={ind.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => setSelectedIndustryId(ind.id)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setSelectedIndustryId(ind.id);
-                                  }
-                                }}
-                                className="cursor-pointer border-b border-gray-100 transition-colors hover:bg-brand-50/80 dark:border-gray-800/80 dark:hover:bg-brand-500/10"
+                                {...industryDrag.rowDragProps(ind.id)}
+                                className={`border-b border-gray-100 transition-colors dark:border-gray-800/80 ${industryDrag.rowClassName(ind.id)}`}
                               >
-                                <td className="px-4 py-3 font-medium">{ind.label}</td>
-                                <td className="max-w-xl px-4 py-3 text-theme-xs text-gray-600 dark:text-gray-400">
-                                  {[...(ind.projectTypes ?? [])]
-                                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                                <td className="px-2 py-3 align-middle">
+                                  <CatalogDragHandle {...industryDrag.dragHandleProps(ind.id, ind.label)} />
+                                </td>
+                                <td
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => setSelectedIndustryId(ind.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setSelectedIndustryId(ind.id);
+                                    }
+                                  }}
+                                  className="cursor-pointer px-4 py-3 font-medium hover:text-brand-600 dark:hover:text-brand-400"
+                                >
+                                  {ind.label}
+                                </td>
+                                <td
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => setSelectedIndustryId(ind.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setSelectedIndustryId(ind.id);
+                                    }
+                                  }}
+                                  className="max-w-xl cursor-pointer px-4 py-3 text-theme-xs text-gray-600 dark:text-gray-400"
+                                >
+                                  {sortByOrder(ind.projectTypes ?? [], (a, b) =>
+                                    displayProjectTypeLabel(a).localeCompare(displayProjectTypeLabel(b)),
+                                  )
                                     .map((p) => displayProjectTypeLabel(p))
                                     .join(", ") || "—"}
                                 </td>
-                                <td className="px-4 py-3 text-theme-xs">{ind.sortOrder}</td>
                                 <td className="px-4 py-3 text-theme-xs">
                                   {ind.isActive ? (
                                     <span className="text-green-600 dark:text-green-400">Active</span>
                                   ) : (
                                     <span className="text-gray-500">Inactive</span>
                                   )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3 text-theme-xs">
+                                    <button
+                                      type="button"
+                                      className="text-brand-600 hover:underline dark:text-brand-400"
+                                      disabled={industryDrag.reordering}
+                                      onClick={() => setEditingIndustry(ind)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-gray-600 hover:underline dark:text-gray-300"
+                                      disabled={industryDrag.reordering}
+                                      onClick={() => setSelectedIndustryId(ind.id)}
+                                    >
+                                      Manage
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -406,23 +568,36 @@ export default function PlatformCatalogPage() {
                         {industriesSorted.map((ind) => {
                           const isSel = selectedIndustryId === ind.id;
                           return (
-                            <li key={ind.id}>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedIndustryId(ind.id)}
-                                className={`flex w-full flex-col items-start rounded-lg border px-2.5 py-2 text-left text-theme-sm transition-colors ${
+                            <li
+                              key={ind.id}
+                              {...industryDrag.rowDragProps(ind.id)}
+                              className={industryDrag.rowClassName(ind.id)}
+                            >
+                              <div
+                                className={`flex items-start gap-1 rounded-lg border px-1.5 py-1.5 transition-colors ${
                                   isSel
-                                    ? "border-brand-500 bg-brand-50 text-gray-900 dark:border-brand-500 dark:bg-brand-500/10 dark:text-white"
-                                    : "border-transparent bg-gray-50/80 hover:border-gray-200 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:border-gray-700 dark:hover:bg-white/[0.08]"
+                                    ? "border-brand-500 bg-brand-50 dark:border-brand-500 dark:bg-brand-500/10"
+                                    : "border-transparent bg-gray-50/80 dark:bg-white/[0.04]"
                                 }`}
                               >
-                                <span className="line-clamp-2 font-medium leading-snug">
-                                  {ind.label}
-                                </span>
-                                <span className="mt-1 text-theme-xs text-gray-400 dark:text-gray-500">
-                                  {ind.isActive ? "Active" : "Inactive"} · sort {ind.sortOrder}
-                                </span>
-                              </button>
+                                <CatalogDragHandle {...industryDrag.dragHandleProps(ind.id, ind.label)} />
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedIndustryId(ind.id)}
+                                  className={`min-w-0 flex-1 flex-col items-start rounded-md px-1 py-0.5 text-left text-theme-sm transition-colors ${
+                                    isSel
+                                      ? "text-gray-900 dark:text-white"
+                                      : "text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-white/[0.08]"
+                                  }`}
+                                >
+                                  <span className="line-clamp-2 font-medium leading-snug">
+                                    {ind.label}
+                                  </span>
+                                  <span className="mt-1 text-theme-xs text-gray-400 dark:text-gray-500">
+                                    {ind.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </button>
+                              </div>
                             </li>
                           );
                         })}
@@ -467,208 +642,39 @@ export default function PlatformCatalogPage() {
                           Delete
                         </button>
                       </div>
-                      <div className="mb-6 flex flex-wrap items-end gap-2">
-                        <label className="min-w-[200px] flex-1">
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Label
-                          </span>
-                          <input
-                            className={inputClass}
-                            value={selectedIndustry.label}
-                            onChange={(e) =>
-                              patchIndustryLocal(selectedIndustry.id, { label: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label>
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Sort
-                          </span>
-                          <input
-                            type="number"
-                            className={inputClass + " w-20"}
-                            value={selectedIndustry.sortOrder}
-                            onChange={(e) =>
-                              patchIndustryLocal(selectedIndustry.id, {
-                                sortOrder: Number(e.target.value),
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Active
-                          </span>
-                          <div className="flex h-10 items-center gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                            <input
-                              type="checkbox"
-                              className={catalogCheckboxClass}
-                              checked={selectedIndustry.isActive}
-                              onChange={(e) =>
-                                patchIndustryLocal(selectedIndustry.id, {
-                                  isActive: e.target.checked,
-                                })
-                              }
-                            />
-                          </div>
-                        </label>
+                      <div className="mb-6 flex flex-wrap items-center gap-3">
+                        <p className="text-theme-sm text-gray-600 dark:text-gray-400">
+                          Status:{" "}
+                          {selectedIndustry.isActive ? (
+                            <span className="text-green-600 dark:text-green-400">Active</span>
+                          ) : (
+                            <span className="text-gray-500">Inactive</span>
+                          )}
+                        </p>
                         <button
                           type="button"
-                          className="h-10 rounded-lg bg-gray-100 px-3 text-theme-sm font-medium text-gray-800 dark:bg-gray-800 dark:text-white/90"
-                          onClick={async () => {
-                            try {
-                              const u = await updatePlatformIndustryAdmin(selectedIndustry.id, {
-                                label: selectedIndustry.label,
-                                value: selectedIndustry.value,
-                                sortOrder: selectedIndustry.sortOrder,
-                                isActive: selectedIndustry.isActive,
-                              });
-                              setIndustries((p) =>
-                                p.map((x) =>
-                                  x.id === selectedIndustry.id
-                                    ? { ...u, projectTypes: x.projectTypes }
-                                    : x,
-                                ),
-                              );
-                            } catch (e) {
-                              setError(e instanceof Error ? e.message : "Save failed");
-                            }
-                          }}
+                          className="text-theme-sm text-brand-600 hover:underline dark:text-brand-400"
+                          onClick={() => setEditingIndustry(selectedIndustry)}
                         >
-                          Save industry
+                          Edit industry
                         </button>
                       </div>
 
-                      <p className="mb-2 text-theme-xs font-medium uppercase text-gray-500 dark:text-gray-400">
-                        Project types for this industry
-                      </p>
-                      <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800/80">
-                        <table className="min-w-full text-left text-theme-xs text-gray-800 dark:text-white/90">
-                          <thead className="bg-gray-50 dark:bg-white/[0.04]">
-                            <tr>
-                              <th className="px-2 py-2">Type</th>
-                              <th className="px-2 py-2">Key</th>
-                              <th className="px-2 py-2">Unit placeholder</th>
-                              <th className="px-2 py-2 w-16">Sort</th>
-                              <th className="px-2 py-2">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(selectedIndustry.projectTypes ?? []).map((pt) => (
-                              <tr
-                                key={pt.id}
-                                className="border-t border-gray-100 dark:border-gray-800"
-                              >
-                                <td className="p-1">
-                                  <input
-                                    className={cellInputClass}
-                                    value={displayProjectTypeLabel(pt)}
-                                    onChange={(e) =>
-                                      patchPtLocal(selectedIndustry.id, pt.id, {
-                                        label: e.target.value,
-                                      })
-                                    }
-                                  />
-                                </td>
-                                <td className="p-1">
-                                  <div
-                                    className="flex h-9 items-center px-2 font-mono text-theme-xs text-gray-500 dark:text-gray-400"
-                                    title="Internal key stored on projects and APIs"
-                                  >
-                                    {pt.projectType}
-                                  </div>
-                                </td>
-                                <td className="p-1">
-                                  <input
-                                    className={cellInputClass}
-                                    value={pt.placeholder}
-                                    onChange={(e) =>
-                                      patchPtLocal(selectedIndustry.id, pt.id, {
-                                        placeholder: e.target.value,
-                                      })
-                                    }
-                                  />
-                                </td>
-                                <td className="p-1">
-                                  <input
-                                    type="number"
-                                    className={cellInputClass}
-                                    value={pt.sortOrder}
-                                    onChange={(e) =>
-                                      patchPtLocal(selectedIndustry.id, pt.id, {
-                                        sortOrder: Number(e.target.value),
-                                      })
-                                    }
-                                  />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <button
-                                    type="button"
-                                    className="mr-2 text-theme-xs text-brand-600 dark:text-brand-400"
-                                    onClick={async () => {
-                                      try {
-                                        const u = await updateIndustryProjectTypeAdmin(pt.id, {
-                                          label: (pt.label ?? "").trim()
-                                            ? pt.label
-                                            : formatKeyAsLabel(pt.projectType),
-                                          placeholder: pt.placeholder,
-                                          sortOrder: pt.sortOrder,
-                                        });
-                                        patchPtLocal(selectedIndustry.id, pt.id, u);
-                                      } catch (e) {
-                                        setError(e instanceof Error ? e.message : "Save failed");
-                                      }
-                                    }}
-                                  >
-                                    Save
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="text-theme-xs text-error-600 dark:text-error-400"
-                                    onClick={async () => {
-                                      openConfirm("Remove this project type?", async () => {
-                                        try {
-                                          await deleteIndustryProjectTypeAdmin(pt.id);
-                                          setIndustries((prev) =>
-                                            prev.map((x) =>
-                                              x.id === selectedIndustry.id
-                                                ? {
-                                                    ...x,
-                                                    projectTypes: (x.projectTypes ?? []).filter(
-                                                      (p) => p.id !== pt.id,
-                                                    ),
-                                                  }
-                                                : x,
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          setError(
-                                            e instanceof Error ? e.message : "Delete failed",
-                                          );
-                                        }
-                                      });
-                                    }}
-                                  >
-                                    Remove
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <AddProjectTypeRow
-                        industryId={selectedIndustry.id}
-                        onCreated={(row) => {
+                      <IndustryProjectTypesSection
+                        industry={selectedIndustry}
+                        openConfirm={openConfirm}
+                        onError={setError}
+                        onProjectTypesChange={(industryId, projectTypes) => {
                           setIndustries((prev) =>
                             prev.map((x) =>
-                              x.id === selectedIndustry.id
-                                ? { ...x, projectTypes: [...(x.projectTypes ?? []), row] }
-                                : x,
+                              x.id === industryId ? { ...x, projectTypes } : x,
                             ),
                           );
                         }}
-                        onError={(m) => setError(m)}
+                        onEditProjectType={(pt) =>
+                          setEditingProjectType({ industryId: selectedIndustry.id, pt })
+                        }
+                        reorderProjectTypes={reorderProjectTypes}
                       />
                         </div>
                     </section>
@@ -692,19 +698,6 @@ export default function PlatformCatalogPage() {
                     onChange={(e) => setNewUse((s) => ({ ...s, label: e.target.value }))}
                   />
                 </label>
-                <label>
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Sort
-                  </span>
-                  <input
-                    type="number"
-                    className={inputClass + " w-24"}
-                    value={newUse.sortOrder}
-                    onChange={(e) =>
-                      setNewUse((s) => ({ ...s, sortOrder: Number(e.target.value) }))
-                    }
-                  />
-                </label>
                 <button
                   type="button"
                   className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white"
@@ -714,10 +707,12 @@ export default function PlatformCatalogPage() {
                       const r = await createPlatformDashboardUseAdmin({
                         label: newUse.label.trim(),
                         value: slugifyDashboardUseValue(newUse.label),
-                        sortOrder: newUse.sortOrder,
+                        sortOrder: nextSortOrder(dashboardUses),
                       });
-                      setDashboardUses((p) => [...p, r]);
-                      setNewUse({ label: "", value: "", sortOrder: 0 });
+                      setDashboardUses((p) =>
+                        sortByOrder([...p, r], (a, b) => a.label.localeCompare(b.label)),
+                      );
+                      setNewUse({ label: "" });
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Create failed");
                     }
@@ -730,24 +725,75 @@ export default function PlatformCatalogPage() {
                 <table className="min-w-full text-left text-theme-sm text-gray-800 dark:text-white/90">
                   <thead className="sticky top-0 bg-gray-50 text-theme-xs uppercase dark:bg-white/[0.04]">
                     <tr>
+                      <th className="w-10 px-2 py-2" aria-label="Reorder" />
                       <th className="px-3 py-2">Label</th>
-                      <th className="px-3 py-2">Sort</th>
                       <th className="px-3 py-2">Active</th>
                       <th className="px-3 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dashboardUses.map((row) => (
-                      <DashboardUseRowEditor
+                    {dashboardUsesSorted.map((row) => (
+                      <tr
                         key={row.id}
-                        row={row}
-                        openConfirm={openConfirm}
-                        onUpdate={(u) =>
-                          setDashboardUses((p) => p.map((x) => (x.id === row.id ? u : x)))
-                        }
-                        onRemove={() => setDashboardUses((p) => p.filter((x) => x.id !== row.id))}
-                        onError={(m) => setError(m)}
-                      />
+                        {...dashboardDrag.rowDragProps(row.id)}
+                        className={`border-t border-gray-200 dark:border-gray-800 ${dashboardDrag.rowClassName(row.id)}`}
+                      >
+                        <td className="px-2 py-2 align-middle">
+                          <CatalogDragHandle
+                            {...dashboardDrag.dragHandleProps(row.id, row.label)}
+                          />
+                        </td>
+                        <td className="px-3 py-2">{row.label}</td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            className={catalogCheckboxClass}
+                            checked={row.isActive}
+                            disabled={dashboardDrag.reordering}
+                            onChange={async (e) => {
+                              try {
+                                const u = await updatePlatformDashboardUseAdmin(row.id, {
+                                  isActive: e.target.checked,
+                                });
+                                setDashboardUses((p) =>
+                                  p.map((x) => (x.id === row.id ? u : x)),
+                                );
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Update failed");
+                              }
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-3 text-theme-xs">
+                            <button
+                              type="button"
+                              className="text-brand-600 hover:underline dark:text-brand-400"
+                              disabled={dashboardDrag.reordering}
+                              onClick={() => setEditingDashboardUse(row)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-error-600 dark:text-error-400"
+                              disabled={dashboardDrag.reordering}
+                              onClick={() => {
+                                openConfirm("Delete this option?", async () => {
+                                  try {
+                                    await deletePlatformDashboardUseAdmin(row.id);
+                                    setDashboardUses((p) => p.filter((x) => x.id !== row.id));
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Delete failed");
+                                  }
+                                });
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -768,28 +814,22 @@ export default function PlatformCatalogPage() {
                     onChange={(e) => setNewCategory((s) => ({ ...s, name: e.target.value }))}
                   />
                 </label>
-                <label>
-                  <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                    Sort
-                  </span>
-                  <input
-                    type="number"
-                    className={inputClass + " w-24"}
-                    value={newCategory.sortOrder}
-                    onChange={(e) =>
-                      setNewCategory((s) => ({ ...s, sortOrder: Number(e.target.value) }))
-                    }
-                  />
-                </label>
                 <button
                   type="button"
                   className="h-10 rounded-lg bg-brand-500 px-4 text-theme-sm font-medium text-white"
                   onClick={async () => {
                     if (!newCategory.name.trim()) return;
                     try {
-                      const r = await createPlatformSkillCategoryAdmin(newCategory);
-                      setSkillCategories((p) => [...p, { ...r, skills: [] }]);
-                      setNewCategory({ name: "", sortOrder: 0 });
+                      const r = await createPlatformSkillCategoryAdmin({
+                        name: newCategory.name.trim(),
+                        sortOrder: nextSortOrder(skillCategories),
+                      });
+                      setSkillCategories((p) =>
+                        sortByOrder([...p, { ...r, skills: [] }], (a, b) =>
+                          a.name.localeCompare(b.name),
+                        ),
+                      );
+                      setNewCategory({ name: "" });
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Create failed");
                     }
@@ -811,21 +851,40 @@ export default function PlatformCatalogPage() {
                       <ul className="space-y-0.5 p-2">
                         {skillCategoriesSorted.map((cat) => {
                           const skillsSummary =
-                            (cat.skills ?? []).map((s) => s.name).join(", ") || "—";
+                            sortByOrder(cat.skills ?? [], (a, b) => a.name.localeCompare(b.name))
+                              .map((s) => s.name)
+                              .join(", ") || "—";
                           return (
-                            <li key={cat.id}>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedSkillCategoryId(cat.id)}
-                                className={`flex w-full flex-col items-start rounded-lg border px-2.5 py-2 text-left text-theme-sm transition-colors hover:border-gray-200 hover:bg-gray-100 dark:hover:border-gray-700 dark:hover:bg-white/[0.08]`}
-                              >
-                                <span className="line-clamp-2 font-medium leading-snug">
-                                  {cat.name}
-                                </span>
-                                <span className="mt-1 text-theme-xs text-gray-400 dark:text-gray-500">
-                                  {skillsSummary}
-                                </span>
-                              </button>
+                            <li
+                              key={cat.id}
+                              {...skillCategoryDrag.rowDragProps(cat.id)}
+                              className={skillCategoryDrag.rowClassName(cat.id)}
+                            >
+                              <div className="flex items-start gap-1 rounded-lg border border-transparent px-1.5 py-1.5">
+                                <CatalogDragHandle
+                                  {...skillCategoryDrag.dragHandleProps(cat.id, cat.name)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedSkillCategoryId(cat.id)}
+                                  className="min-w-0 flex-1 flex-col items-start rounded-md px-1 py-0.5 text-left text-theme-sm transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                                >
+                                  <span className="line-clamp-2 font-medium leading-snug">
+                                    {cat.name}
+                                  </span>
+                                  <span className="mt-1 text-theme-xs text-gray-400 dark:text-gray-500">
+                                    {skillsSummary}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="shrink-0 px-1 text-theme-xs text-brand-600 dark:text-brand-400"
+                                  disabled={skillCategoryDrag.reordering}
+                                  onClick={() => setEditingSkillCategory(cat)}
+                                >
+                                  Edit
+                                </button>
+                              </div>
                             </li>
                           );
                         })}
@@ -845,20 +904,35 @@ export default function PlatformCatalogPage() {
                       {skillCategoriesSorted.map((cat) => {
                         const isSel = cat.id === selectedSkillCategoryId;
                         return (
-                          <li key={cat.id}>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedSkillCategoryId(cat.id)}
-                              className={`flex w-full flex-col items-start rounded-lg border px-2.5 py-2 text-left text-theme-sm transition-colors ${
+                          <li
+                            key={cat.id}
+                            {...skillCategoryDrag.rowDragProps(cat.id)}
+                            className={skillCategoryDrag.rowClassName(cat.id)}
+                          >
+                            <div
+                              className={`flex items-start gap-1 rounded-lg border px-1.5 py-1.5 transition-colors ${
                                 isSel
-                                  ? "border-brand-500 bg-brand-50 text-gray-900 dark:border-brand-500 dark:bg-brand-500/10 dark:text-white"
-                                  : "border-transparent bg-gray-50/80 hover:border-gray-200 hover:bg-gray-100 dark:bg-white/[0.04] dark:hover:border-gray-700 dark:hover:bg-white/[0.08]"
+                                  ? "border-brand-500 bg-brand-50 dark:border-brand-500 dark:bg-brand-500/10"
+                                  : "border-transparent bg-gray-50/80 dark:bg-white/[0.04]"
                               }`}
                             >
-                              <span className="line-clamp-2 font-medium leading-snug">
-                                {cat.name}
-                              </span>
-                            </button>
+                              <CatalogDragHandle
+                                {...skillCategoryDrag.dragHandleProps(cat.id, cat.name)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSelectedSkillCategoryId(cat.id)}
+                                className={`min-w-0 flex-1 flex-col items-start rounded-md px-1 py-0.5 text-left text-theme-sm transition-colors ${
+                                  isSel
+                                    ? "text-gray-900 dark:text-white"
+                                    : "text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-white/[0.08]"
+                                }`}
+                              >
+                                <span className="line-clamp-2 font-medium leading-snug">
+                                  {cat.name}
+                                </span>
+                              </button>
+                            </div>
                           </li>
                         );
                       })}
@@ -901,190 +975,45 @@ export default function PlatformCatalogPage() {
                         </button>
                       </div>
 
-                      <div className="mb-6 flex flex-wrap items-end gap-2">
-                        <label className="min-w-[200px] flex-1">
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Category
-                          </span>
-                          <input
-                            className={inputClass}
-                            value={selectedSkillCategory.name}
-                            onChange={(e) =>
-                              setSkillCategories((p) =>
-                                p.map((c) =>
-                                  c.id === selectedSkillCategory.id
-                                    ? { ...c, name: e.target.value }
-                                    : c,
-                                ),
-                              )
-                            }
-                          />
-                        </label>
-                        <label>
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Sort
-                          </span>
-                          <input
-                            type="number"
-                            className={inputClass + " w-20"}
-                            value={selectedSkillCategory.sortOrder}
-                            onChange={(e) =>
-                              setSkillCategories((p) =>
-                                p.map((c) =>
-                                  c.id === selectedSkillCategory.id
-                                    ? { ...c, sortOrder: Number(e.target.value) }
-                                    : c,
-                                ),
-                              )
-                            }
-                          />
-                        </label>
-                        <label>
-                          <span className="mb-1 block text-theme-xs text-gray-600 dark:text-gray-400">
-                            Active
-                          </span>
-                          <div className="flex h-10 items-center gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                            <input
-                              type="checkbox"
-                              className={catalogCheckboxClass}
-                              checked={selectedSkillCategory.isActive}
-                              onChange={(e) =>
-                                setSkillCategories((p) =>
-                                  p.map((c) =>
-                                    c.id === selectedSkillCategory.id
-                                      ? { ...c, isActive: e.target.checked }
-                                      : c,
-                                  ),
-                                )
-                              }
-                            />
-                          </div>
-                        </label>
+                      <div className="mb-6 flex flex-wrap items-center gap-3">
+                        <p className="text-theme-sm text-gray-600 dark:text-gray-400">
+                          Status:{" "}
+                          {selectedSkillCategory.isActive ? (
+                            <span className="text-green-600 dark:text-green-400">Active</span>
+                          ) : (
+                            <span className="text-gray-500">Inactive</span>
+                          )}
+                        </p>
                         <button
                           type="button"
-                          className="h-10 rounded-lg bg-gray-100 px-3 text-theme-sm dark:bg-gray-800 dark:text-white/90"
-                          onClick={async () => {
-                            try {
-                              const u = await updatePlatformSkillCategoryAdmin(selectedSkillCategory.id, {
-                                name: selectedSkillCategory.name,
-                                sortOrder: selectedSkillCategory.sortOrder,
-                                isActive: selectedSkillCategory.isActive,
-                              });
-                              setSkillCategories((p) =>
-                                p.map((c) =>
-                                  c.id === selectedSkillCategory.id
-                                    ? { ...c, ...u, skills: c.skills }
-                                    : c,
-                                ),
-                              );
-                            } catch (e) {
-                              setError(e instanceof Error ? e.message : "Save failed");
-                            }
-                          }}
+                          className="text-theme-sm text-brand-600 hover:underline dark:text-brand-400"
+                          onClick={() => setEditingSkillCategory(selectedSkillCategory)}
                         >
-                          Save category
+                          Edit category
                         </button>
                       </div>
 
-                      <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800/80">
-                        <table className="min-w-full text-left text-theme-xs">
-                          <thead className="bg-gray-50 dark:bg-white/[0.04]">
-                            <tr>
-                              <th className="px-2 py-2">Skill</th>
-                              <th className="px-2 py-2 w-16">Sort</th>
-                              <th className="px-2 py-2">Active</th>
-                              <th className="px-2 py-2">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(selectedSkillCategory.skills ?? []).map((sk) => (
-                              <SkillRowEditor
-                                key={sk.id}
-                                skill={sk}
-                                openConfirm={openConfirm}
-                                onPatch={(patch) =>
-                                  setSkillCategories((p) =>
-                                    p.map((c) =>
-                                      c.id === selectedSkillCategory.id
-                                        ? {
-                                            ...c,
-                                            skills: (c.skills ?? []).map((s) =>
-                                              s.id === sk.id ? { ...s, ...patch } : s,
-                                            ),
-                                          }
-                                        : c,
-                                    ),
-                                  )
-                                }
-                                onSaved={(u) =>
-                                  setSkillCategories((p) =>
-                                    p.map((c) =>
-                                      c.id === selectedSkillCategory.id
-                                        ? {
-                                            ...c,
-                                            skills: (c.skills ?? []).map((s) =>
-                                              s.id === sk.id ? u : s,
-                                            ),
-                                          }
-                                        : c,
-                                    ),
-                                  )
-                                }
-                                onRemoved={() =>
-                                  setSkillCategories((p) =>
-                                    p.map((c) =>
-                                      c.id === selectedSkillCategory.id
-                                        ? {
-                                            ...c,
-                                            skills: (c.skills ?? []).filter((s) => s.id !== sk.id),
-                                          }
-                                        : c,
-                                    ),
-                                  )
-                                }
-                                onError={(m) => setError(m)}
-                              />
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap items-end gap-2">
-                        <input
-                          className={inputClass + " max-w-md flex-1"}
-                          placeholder="New skill name"
-                          value={newSkillByCategory[selectedSkillCategory.id] ?? ""}
-                          onChange={(e) =>
-                            setNewSkillByCategory((s) => ({
-                              ...s,
-                              [selectedSkillCategory.id]: e.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="h-10 rounded-lg border border-gray-200 px-3 text-theme-sm dark:border-gray-700"
-                          onClick={async () => {
-                            const name = (newSkillByCategory[selectedSkillCategory.id] ?? "").trim();
-                            if (!name) return;
-                            try {
-                              const row = await createPlatformSkillAdmin(selectedSkillCategory.id, { name });
-                              setSkillCategories((p) =>
-                                p.map((c) =>
-                                  c.id === selectedSkillCategory.id
-                                    ? { ...c, skills: [...(c.skills ?? []), row] }
-                                    : c,
-                                ),
-                              );
-                              setNewSkillByCategory((s) => ({ ...s, [selectedSkillCategory.id]: "" }));
-                            } catch (e) {
-                              setError(e instanceof Error ? e.message : "Create failed");
-                            }
-                          }}
-                        >
-                          Add skill
-                        </button>
-                      </div>
+                      <CategorySkillsSection
+                        category={selectedSkillCategory}
+                        newSkillName={newSkillByCategory[selectedSkillCategory.id] ?? ""}
+                        onNewSkillNameChange={(value) =>
+                          setNewSkillByCategory((s) => ({
+                            ...s,
+                            [selectedSkillCategory.id]: value,
+                          }))
+                        }
+                        openConfirm={openConfirm}
+                        onError={setError}
+                        onSkillsChange={(categoryId, skills) => {
+                          setSkillCategories((p) =>
+                            p.map((c) => (c.id === categoryId ? { ...c, skills } : c)),
+                          );
+                        }}
+                        onEditSkill={(skill) =>
+                          setEditingSkill({ categoryId: selectedSkillCategory.id, skill })
+                        }
+                        reorderSkills={reorderSkills}
+                      />
                     </div>
                   </section>
                 </div>
@@ -1096,6 +1025,163 @@ export default function PlatformCatalogPage() {
         </div>
       )}
       </div>
+
+      {editingIndustry && (
+        <CatalogLabelEditModal
+          title="Edit industry"
+          label="Label"
+          initialLabel={editingIndustry.label}
+          initialIsActive={editingIndustry.isActive}
+          saving={savingEdit}
+          onClose={() => setEditingIndustry(null)}
+          onSave={async (label, isActive) => {
+            setSavingEdit(true);
+            try {
+              const u = await updatePlatformIndustryAdmin(editingIndustry.id, {
+                label: label.trim(),
+                value: editingIndustry.value,
+                isActive,
+              });
+              setIndustries((p) =>
+                p.map((x) =>
+                  x.id === editingIndustry.id ? { ...u, projectTypes: x.projectTypes } : x,
+                ),
+              );
+              setEditingIndustry(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save failed");
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+        />
+      )}
+
+      {editingDashboardUse && (
+        <CatalogLabelEditModal
+          title="Edit dashboard use"
+          label="Label"
+          initialLabel={editingDashboardUse.label}
+          initialIsActive={editingDashboardUse.isActive}
+          saving={savingEdit}
+          onClose={() => setEditingDashboardUse(null)}
+          onSave={async (label, isActive) => {
+            setSavingEdit(true);
+            try {
+              const u = await updatePlatformDashboardUseAdmin(editingDashboardUse.id, {
+                label: label.trim(),
+                value: editingDashboardUse.value,
+                isActive,
+              });
+              setDashboardUses((p) => p.map((x) => (x.id === editingDashboardUse.id ? u : x)));
+              setEditingDashboardUse(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save failed");
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+        />
+      )}
+
+      {editingSkillCategory && (
+        <CatalogLabelEditModal
+          title="Edit skill category"
+          label="Category name"
+          initialLabel={editingSkillCategory.name}
+          initialIsActive={editingSkillCategory.isActive}
+          saving={savingEdit}
+          onClose={() => setEditingSkillCategory(null)}
+          onSave={async (name, isActive) => {
+            setSavingEdit(true);
+            try {
+              const u = await updatePlatformSkillCategoryAdmin(editingSkillCategory.id, {
+                name: name.trim(),
+                isActive,
+              });
+              setSkillCategories((p) =>
+                p.map((c) =>
+                  c.id === editingSkillCategory.id ? { ...c, ...u, skills: c.skills } : c,
+                ),
+              );
+              setEditingSkillCategory(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save failed");
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+        />
+      )}
+
+      {editingSkill && (
+        <CatalogLabelEditModal
+          title="Edit skill"
+          label="Skill name"
+          initialLabel={editingSkill.skill.name}
+          initialIsActive={editingSkill.skill.isActive}
+          saving={savingEdit}
+          onClose={() => setEditingSkill(null)}
+          onSave={async (name, isActive) => {
+            setSavingEdit(true);
+            try {
+              const u = await updatePlatformSkillAdmin(editingSkill.skill.id, {
+                name: name.trim(),
+                isActive,
+              });
+              setSkillCategories((p) =>
+                p.map((c) =>
+                  c.id === editingSkill.categoryId
+                    ? {
+                        ...c,
+                        skills: (c.skills ?? []).map((s) => (s.id === editingSkill.skill.id ? u : s)),
+                      }
+                    : c,
+                ),
+              );
+              setEditingSkill(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save failed");
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+        />
+      )}
+
+      {editingProjectType && (
+        <ProjectTypeEditModal
+          projectType={editingProjectType.pt}
+          saving={savingEdit}
+          onClose={() => setEditingProjectType(null)}
+          onSave={async (label, placeholder) => {
+            setSavingEdit(true);
+            try {
+              const u = await updateIndustryProjectTypeAdmin(editingProjectType.pt.id, {
+                label: label.trim(),
+                placeholder: placeholder.trim(),
+              });
+              setIndustries((prev) =>
+                prev.map((ind) =>
+                  ind.id === editingProjectType.industryId
+                    ? {
+                        ...ind,
+                        projectTypes: (ind.projectTypes ?? []).map((p) =>
+                          p.id === editingProjectType.pt.id ? u : p,
+                        ),
+                      }
+                    : ind,
+                ),
+              );
+              setEditingProjectType(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save failed");
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+        />
+      )}
 
       {confirmOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -1137,18 +1223,429 @@ export default function PlatformCatalogPage() {
   );
 }
 
+function CatalogLabelEditModal({
+  title,
+  label,
+  initialLabel,
+  initialIsActive,
+  saving,
+  onClose,
+  onSave,
+}: {
+  title: string;
+  label: string;
+  initialLabel: string;
+  initialIsActive: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (label: string, isActive: boolean) => Promise<void>;
+}) {
+  const [draftLabel, setDraftLabel] = useState(initialLabel);
+  const [draftActive, setDraftActive] = useState(initialIsActive);
+
+  useEffect(() => {
+    setDraftLabel(initialLabel);
+    setDraftActive(initialIsActive);
+  }, [initialLabel, initialIsActive]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        aria-label="Close edit dialog"
+        onClick={onClose}
+      />
+      <div className="relative w-[min(92vw,520px)] rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-800 dark:bg-gray-950">
+        <h3 className="text-theme-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <div className="mt-4 space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-theme-xs text-gray-500 dark:text-gray-400">
+              {label}
+            </span>
+            <input
+              className={inputClass}
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              className={catalogCheckboxClass}
+              checked={draftActive}
+              onChange={(e) => setDraftActive(e.target.checked)}
+            />
+            Active
+          </label>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="h-9 rounded-lg border border-gray-200 px-3 text-theme-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving || !draftLabel.trim()}
+            onClick={() => void onSave(draftLabel, draftActive)}
+            className="h-9 rounded-lg bg-brand-500 px-3 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectTypeEditModal({
+  projectType,
+  saving,
+  onClose,
+  onSave,
+}: {
+  projectType: PlatformIndustryProjectTypeRow;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (label: string, placeholder: string) => Promise<void>;
+}) {
+  const [label, setLabel] = useState(displayProjectTypeLabel(projectType));
+  const [placeholder, setPlaceholder] = useState(projectType.placeholder);
+
+  useEffect(() => {
+    setLabel(displayProjectTypeLabel(projectType));
+    setPlaceholder(projectType.placeholder);
+  }, [projectType]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        aria-label="Close edit dialog"
+        onClick={onClose}
+      />
+      <div className="relative w-[min(92vw,520px)] rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-800 dark:bg-gray-950">
+        <h3 className="text-theme-sm font-semibold text-gray-900 dark:text-white">
+          Edit project type
+        </h3>
+        <p className="mt-1 font-mono text-theme-xs text-gray-500 dark:text-gray-400">
+          Key: {projectType.projectType}
+        </p>
+        <div className="mt-4 space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-theme-xs text-gray-500 dark:text-gray-400">Type</span>
+            <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-theme-xs text-gray-500 dark:text-gray-400">
+              Unit placeholder
+            </span>
+            <input
+              className={inputClass}
+              value={placeholder}
+              onChange={(e) => setPlaceholder(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="h-9 rounded-lg border border-gray-200 px-3 text-theme-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving || !label.trim() || !placeholder.trim()}
+            onClick={() => void onSave(label, placeholder)}
+            className="h-9 rounded-lg bg-brand-500 px-3 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IndustryProjectTypesSection({
+  industry,
+  openConfirm,
+  onError,
+  onProjectTypesChange,
+  onEditProjectType,
+  reorderProjectTypes,
+}: {
+  industry: PlatformIndustryAdminRow;
+  openConfirm: (msg: string, action: () => Promise<void> | void) => void;
+  onError: (m: string) => void;
+  onProjectTypesChange: (industryId: string, projectTypes: PlatformIndustryProjectTypeRow[]) => void;
+  onEditProjectType: (pt: PlatformIndustryProjectTypeRow) => void;
+  reorderProjectTypes: (
+    industryId: string,
+    reordered: PlatformIndustryProjectTypeRow[],
+  ) => Promise<void>;
+}) {
+  const projectTypesSorted = useMemo(
+    () =>
+      sortByOrder(industry.projectTypes ?? [], (a, b) =>
+        displayProjectTypeLabel(a).localeCompare(displayProjectTypeLabel(b)),
+      ),
+    [industry.projectTypes],
+  );
+
+  const drag = useCatalogDragReorder(
+    projectTypesSorted,
+    (reordered) => reorderProjectTypes(industry.id, reordered),
+    onError,
+  );
+
+  return (
+    <>
+      <p className="mb-2 text-theme-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+        Project types for this industry
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800/80">
+        <table className="min-w-full text-left text-theme-xs text-gray-800 dark:text-white/90">
+          <thead className="bg-gray-50 dark:bg-white/[0.04]">
+            <tr>
+              <th className="w-10 px-2 py-2" aria-label="Reorder" />
+              <th className="px-2 py-2">Type</th>
+              <th className="px-2 py-2">Key</th>
+              <th className="px-2 py-2">Unit placeholder</th>
+              <th className="px-2 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {projectTypesSorted.map((pt) => (
+              <tr
+                key={pt.id}
+                {...drag.rowDragProps(pt.id)}
+                className={`border-t border-gray-100 dark:border-gray-800 ${drag.rowClassName(pt.id)}`}
+              >
+                <td className="p-1 align-middle">
+                  <CatalogDragHandle
+                    {...drag.dragHandleProps(pt.id, displayProjectTypeLabel(pt))}
+                  />
+                </td>
+                <td className="px-2 py-2">{displayProjectTypeLabel(pt)}</td>
+                <td className="px-2 py-2 font-mono text-gray-500 dark:text-gray-400">
+                  {pt.projectType}
+                </td>
+                <td className="px-2 py-2 text-gray-600 dark:text-gray-400">{pt.placeholder}</td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-theme-xs text-brand-600 dark:text-brand-400"
+                      disabled={drag.reordering}
+                      onClick={() => onEditProjectType(pt)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-theme-xs text-error-600 dark:text-error-400"
+                      disabled={drag.reordering}
+                      onClick={() => {
+                        openConfirm("Remove this project type?", async () => {
+                          try {
+                            await deleteIndustryProjectTypeAdmin(pt.id);
+                            onProjectTypesChange(
+                              industry.id,
+                              (industry.projectTypes ?? []).filter((p) => p.id !== pt.id),
+                            );
+                          } catch (e) {
+                            onError(e instanceof Error ? e.message : "Delete failed");
+                          }
+                        });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <AddProjectTypeRow
+        industryId={industry.id}
+        existingCount={(industry.projectTypes ?? []).length}
+        onCreated={(row) => {
+          onProjectTypesChange(industry.id, [...(industry.projectTypes ?? []), row]);
+        }}
+        onError={onError}
+      />
+    </>
+  );
+}
+
+function CategorySkillsSection({
+  category,
+  newSkillName,
+  onNewSkillNameChange,
+  openConfirm,
+  onError,
+  onSkillsChange,
+  onEditSkill,
+  reorderSkills,
+}: {
+  category: PlatformSkillCategoryAdminRow;
+  newSkillName: string;
+  onNewSkillNameChange: (value: string) => void;
+  openConfirm: (msg: string, action: () => Promise<void> | void) => void;
+  onError: (m: string) => void;
+  onSkillsChange: (categoryId: string, skills: PlatformSkillAdminRow[]) => void;
+  onEditSkill: (skill: PlatformSkillAdminRow) => void;
+  reorderSkills: (categoryId: string, reordered: PlatformSkillAdminRow[]) => Promise<void>;
+}) {
+  const skillsSorted = useMemo(
+    () => sortByOrder(category.skills ?? [], (a, b) => a.name.localeCompare(b.name)),
+    [category.skills],
+  );
+
+  const drag = useCatalogDragReorder(
+    skillsSorted,
+    (reordered) => reorderSkills(category.id, reordered),
+    onError,
+  );
+
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800/80">
+        <table className="min-w-full text-left text-theme-xs">
+          <thead className="bg-gray-50 dark:bg-white/[0.04]">
+            <tr>
+              <th className="w-10 px-2 py-2" aria-label="Reorder" />
+              <th className="px-2 py-2">Skill</th>
+              <th className="px-2 py-2">Active</th>
+              <th className="px-2 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {skillsSorted.map((sk) => (
+              <tr
+                key={sk.id}
+                {...drag.rowDragProps(sk.id)}
+                className={`border-t border-gray-200 dark:border-gray-800 ${drag.rowClassName(sk.id)}`}
+              >
+                <td className="p-1 align-middle">
+                  <CatalogDragHandle {...drag.dragHandleProps(sk.id, sk.name)} />
+                </td>
+                <td className="px-2 py-2">{sk.name}</td>
+                <td className="px-2 py-2">
+                  <input
+                    type="checkbox"
+                    className={catalogCheckboxClass}
+                    checked={sk.isActive}
+                    disabled={drag.reordering}
+                    onChange={async (e) => {
+                      try {
+                        const u = await updatePlatformSkillAdmin(sk.id, {
+                          isActive: e.target.checked,
+                        });
+                        onSkillsChange(
+                          category.id,
+                          (category.skills ?? []).map((s) => (s.id === sk.id ? u : s)),
+                        );
+                      } catch (err) {
+                        onError(err instanceof Error ? err.message : "Update failed");
+                      }
+                    }}
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-theme-xs text-brand-600 dark:text-brand-400"
+                      disabled={drag.reordering}
+                      onClick={() => onEditSkill(sk)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-theme-xs text-error-600 dark:text-error-400"
+                      disabled={drag.reordering}
+                      onClick={() => {
+                        openConfirm("Remove skill?", async () => {
+                          try {
+                            await deletePlatformSkillAdmin(sk.id);
+                            onSkillsChange(
+                              category.id,
+                              (category.skills ?? []).filter((s) => s.id !== sk.id),
+                            );
+                          } catch (err) {
+                            onError(err instanceof Error ? err.message : "Delete failed");
+                          }
+                        });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <input
+          className={inputClass + " max-w-md flex-1"}
+          placeholder="New skill name"
+          value={newSkillName}
+          onChange={(e) => onNewSkillNameChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="h-10 rounded-lg border border-gray-200 px-3 text-theme-sm dark:border-gray-700"
+          onClick={async () => {
+            const name = newSkillName.trim();
+            if (!name) return;
+            try {
+              const row = await createPlatformSkillAdmin(category.id, {
+                name,
+                sortOrder: nextSortOrder(category.skills ?? []),
+              });
+              onSkillsChange(category.id, [...(category.skills ?? []), row]);
+              onNewSkillNameChange("");
+            } catch (e) {
+              onError(e instanceof Error ? e.message : "Create failed");
+            }
+          }}
+        >
+          Add skill
+        </button>
+      </div>
+    </>
+  );
+}
+
 function AddProjectTypeRow({
   industryId,
+  existingCount,
   onCreated,
   onError,
 }: {
   industryId: string;
+  existingCount: number;
   onCreated: (row: PlatformIndustryProjectTypeRow) => void;
   onError: (m: string) => void;
 }) {
   const [typeLabel, setTypeLabel] = useState("");
   const [placeholder, setPlaceholder] = useState("");
-  const [sortOrder, setSortOrder] = useState(0);
   return (
     <div className="mt-2 flex flex-wrap items-end gap-2">
       <input
@@ -1163,12 +1660,6 @@ function AddProjectTypeRow({
         value={placeholder}
         onChange={(e) => setPlaceholder(e.target.value)}
       />
-      <input
-        type="number"
-        className={inputClass + " w-20"}
-        value={sortOrder}
-        onChange={(e) => setSortOrder(Number(e.target.value))}
-      />
       <button
         type="button"
         className="h-10 rounded-lg border border-gray-200 px-3 text-theme-sm dark:border-gray-700"
@@ -1178,12 +1669,11 @@ function AddProjectTypeRow({
             const row = await createIndustryProjectTypeAdmin(industryId, {
               label: typeLabel.trim(),
               placeholder,
-              sortOrder,
+              sortOrder: existingCount,
             });
             onCreated(row);
             setTypeLabel("");
             setPlaceholder("");
-            setSortOrder(0);
           } catch (e) {
             onError(e instanceof Error ? e.message : "Create failed");
           }
@@ -1192,172 +1682,5 @@ function AddProjectTypeRow({
         Add project type
       </button>
     </div>
-  );
-}
-
-function DashboardUseRowEditor({
-  row,
-  onUpdate,
-  onRemove,
-  onError,
-  openConfirm,
-}: {
-  row: PlatformDashboardUseAdminRow;
-  onUpdate: (u: PlatformDashboardUseAdminRow) => void;
-  onRemove: () => void;
-  onError: (m: string) => void;
-  openConfirm: (msg: string, action: () => Promise<void> | void) => void;
-}) {
-  const [draft, setDraft] = useState(row);
-  useEffect(() => {
-    setDraft(row);
-  }, [row]);
-  return (
-    <tr className="border-t border-gray-200 dark:border-gray-800">
-      <td className="px-2 py-1">
-        <input
-          className={cellInputClass}
-          value={draft.label}
-          onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
-        />
-      </td>
-      <td className="px-2 py-1">
-        <input
-          type="number"
-          className={cellInputClass}
-          value={draft.sortOrder}
-          onChange={(e) => setDraft((d) => ({ ...d, sortOrder: Number(e.target.value) }))}
-        />
-      </td>
-      <td className="px-2 py-1">
-        <div className="flex h-9 items-center">
-          <input
-            type="checkbox"
-            className={catalogCheckboxClass}
-            checked={draft.isActive}
-            onChange={(e) => setDraft((d) => ({ ...d, isActive: e.target.checked }))}
-          />
-        </div>
-      </td>
-      <td className="px-2 py-1">
-        <button
-          type="button"
-          className="mr-2 text-theme-xs text-brand-600"
-          onClick={async () => {
-            try {
-              const u = await updatePlatformDashboardUseAdmin(row.id, {
-                label: draft.label,
-                value: draft.value,
-                sortOrder: draft.sortOrder,
-                isActive: draft.isActive,
-              });
-              onUpdate(u);
-            } catch (e) {
-              onError(e instanceof Error ? e.message : "Save failed");
-            }
-          }}
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          className="text-theme-xs text-error-600"
-          onClick={async () => {
-            openConfirm("Delete this option?", async () => {
-              try {
-                await deletePlatformDashboardUseAdmin(row.id);
-                onRemove();
-              } catch (e) {
-                onError(e instanceof Error ? e.message : "Delete failed");
-              }
-            });
-          }}
-        >
-          Delete
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-function SkillRowEditor({
-  skill,
-  onPatch,
-  onSaved,
-  onRemoved,
-  onError,
-  openConfirm,
-}: {
-  skill: PlatformSkillAdminRow;
-  onPatch: (patch: Partial<PlatformSkillAdminRow>) => void;
-  onSaved: (u: PlatformSkillAdminRow) => void;
-  onRemoved: () => void;
-  onError: (m: string) => void;
-  openConfirm: (msg: string, action: () => Promise<void> | void) => void;
-}) {
-  return (
-    <tr className="border-t border-gray-200 dark:border-gray-800">
-      <td className="p-1">
-        <input
-          className={cellInputClass}
-          value={skill.name}
-          onChange={(e) => onPatch({ name: e.target.value })}
-        />
-      </td>
-      <td className="p-1">
-        <input
-          type="number"
-          className={cellInputClass}
-          value={skill.sortOrder}
-          onChange={(e) => onPatch({ sortOrder: Number(e.target.value) })}
-        />
-      </td>
-      <td className="p-1">
-        <div className="flex h-9 items-center">
-          <input
-            type="checkbox"
-            className={catalogCheckboxClass}
-            checked={skill.isActive}
-            onChange={(e) => onPatch({ isActive: e.target.checked })}
-          />
-        </div>
-      </td>
-      <td className="p-1">
-        <button
-          type="button"
-          className="mr-2 text-theme-xs text-brand-600"
-          onClick={async () => {
-            try {
-              const u = await updatePlatformSkillAdmin(skill.id, {
-                name: skill.name,
-                sortOrder: skill.sortOrder,
-                isActive: skill.isActive,
-              });
-              onSaved(u);
-            } catch (e) {
-              onError(e instanceof Error ? e.message : "Save failed");
-            }
-          }}
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          className="text-theme-xs text-error-600"
-          onClick={async () => {
-            openConfirm("Remove skill?", async () => {
-              try {
-                await deletePlatformSkillAdmin(skill.id);
-                onRemoved();
-              } catch (e) {
-                onError(e instanceof Error ? e.message : "Delete failed");
-              }
-            });
-          }}
-        >
-          Remove
-        </button>
-      </td>
-    </tr>
   );
 }

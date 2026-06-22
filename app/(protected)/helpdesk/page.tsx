@@ -11,6 +11,7 @@ import type {
   HelpdeskTicketRow,
   HelpdeskTicketStatus,
 } from "@/src/types/helpdeskTickets.types";
+import { getSafeExternalHref } from "@/src/utils/safeUrl";
 
 type StatusFilter = "all" | HelpdeskTicketStatus;
 
@@ -45,17 +46,21 @@ function AttachmentLinks({ items }: { items?: HelpdeskAttachment[] }) {
   if (!items?.length) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-2">
-      {items.map((file, i) => (
-        <a
-          key={`${file.url}-${i}`}
-          href={file.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-theme-xs text-brand-600 hover:underline dark:border-gray-700 dark:bg-gray-900 dark:text-brand-400"
-        >
-          📎 {file.filename}
-        </a>
-      ))}
+      {items.map((file, i) => {
+        const safeHref = getSafeExternalHref(file.url);
+        if (!safeHref) return null;
+        return (
+          <a
+            key={`${file.url}-${i}`}
+            href={safeHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-theme-xs text-brand-600 hover:underline dark:border-gray-700 dark:bg-gray-900 dark:text-brand-400"
+          >
+            📎 {file.filename}
+          </a>
+        );
+      })}
     </div>
   );
 }

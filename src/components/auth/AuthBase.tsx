@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { requestOtp, verifyOtp, logout, getSession } from "@/src/services/api/auth.api";
 import { useSession } from "@/src/context/SessionContext";
@@ -8,7 +7,6 @@ import LoginForm from "@/src/components/auth/LoginForm";
 import OtpVerification from "@/src/components/auth/OtpVerification";
 
 export default function AuthBase() {
-  const router = useRouter();
   const { session, loading: sessionLoading, refetch } = useSession();
   const [email, setEmail] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
@@ -29,9 +27,9 @@ export default function AuthBase() {
   useEffect(() => {
     if (sessionLoading) return;
     if (session?.user?.isGlobalSuperAdmin === true) {
-      router.replace("/dashboard");
+      window.location.replace("/dashboard");
     }
-  }, [session?.user?.isGlobalSuperAdmin, sessionLoading, router]);
+  }, [session?.user?.isGlobalSuperAdmin, sessionLoading]);
 
   const handleRequestOtp = async (value: string, rememberChoice: boolean) => {
     try {

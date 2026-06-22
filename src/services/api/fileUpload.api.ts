@@ -1,4 +1,5 @@
 import { apiConfig } from "@/src/config/api.config";
+import { csrfHeadersForMethod } from "@/src/utils/csrf";
 
 type UploadFileResponse = {
   data?: {
@@ -14,6 +15,7 @@ export async function uploadFile(file: File): Promise<string> {
   const res = await fetch(apiConfig.fileUpload, {
     method: "POST",
     credentials: "include",
+    headers: csrfHeadersForMethod("POST"),
     body: formData,
   });
 

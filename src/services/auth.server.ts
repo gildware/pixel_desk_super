@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { apiConfig } from "@/src/config/api.config";
 import type { Session } from "@/src/types/auth.types";
 import { parseSessionResponse } from "@/src/utils/parseSessionResponse";
@@ -10,25 +10,46 @@ function getCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): stri
     .join("; ");
 }
 
+/**
+ * Resolve server-side fetch URL without trusting request Host headers
+ * (prevents SSRF / session cookie forwarding to attacker-controlled hosts).
+ */
 async function resolveApiUrl(relativeOrAbsolute: string): Promise<string> {
   if (relativeOrAbsolute.startsWith("http")) return relativeOrAbsolute;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-  const proto =
-    h.get("x-forwarded-proto") ??
-    (h.get("x-forwarded-ssl") === "on" ? "https" : "http");
-  if (host) return `${proto}://${host}${relativeOrAbsolute}`;
-  const fallback = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "");
-  if (fallback) return `${fallback}${relativeOrAbsolute}`;
+
+  if (relativeOrAbsolute.startsWith("/api/proxy")) {
+    const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "");
+    if (base) {
+      return `${base}${relativeOrAbsolute}`;
+    }
+
+    // Local dev fallback: cookies are scoped to localhost (not port), so the
+    // backend can validate the session directly when BASE_URL is not configured.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+    if (apiUrl) {
+      const backendPath = relativeOrAbsolute.replace(/^\/api\/proxy/, "");
+      return `${apiUrl}${backendPath}`;
+    }
+
+    throw new Error(
+      "Set NEXT_PUBLIC_BASE_URL for server-side proxy calls, or NEXT_PUBLIC_API_URL for direct backend access.",
+    );
+  }
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (apiUrl) {
+    return `${apiUrl}${relativeOrAbsolute}`;
+  }
+
   return relativeOrAbsolute;
 }
 
 export async function getServerSession(): Promise<Session | null> {
-  const cookieStore = await cookies();
-  const cookieHeader = getCookieHeader(cookieStore);
-  const sessionUrl = await resolveApiUrl(apiConfig.auth.session);
-
   try {
+    const cookieStore = await cookies();
+    const cookieHeader = getCookieHeader(cookieStore);
+    const sessionUrl = await resolveApiUrl(apiConfig.auth.session);
+
     const res = await fetch(sessionUrl, {
       method: "GET",
       headers: { Cookie: cookieHeader },
@@ -46,10 +67,10 @@ export async function getServerSession(): Promise<Session | null> {
 
 /** Call backend logout with current cookies so session is cleared; use when user must not access dashboard (e.g. not global super admin). */
 export async function serverLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  const cookieHeader = getCookieHeader(cookieStore);
-  const logoutUrl = await resolveApiUrl(apiConfig.auth.logout);
   try {
+    const cookieStore = await cookies();
+    const cookieHeader = getCookieHeader(cookieStore);
+    const logoutUrl = await resolveApiUrl(apiConfig.auth.logout);
     await fetch(logoutUrl, {
       method: "POST",
       headers: {

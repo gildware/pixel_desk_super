@@ -9,6 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { getPublicBranding, type WebsiteSettings } from "@/src/services/api/settings.api";
+import { getSafeImageSrc } from "@/src/utils/safeUrl";
 
 type BrandingContextType = {
   branding: WebsiteSettings;
@@ -25,15 +26,32 @@ const DEFAULT_BRANDING: WebsiteSettings = {
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
+const BRANDING_FAVICON_ATTR = "data-pixeldesk-branding-favicon";
+
+/** Update only our own favicon link — never remove Next/React-managed head nodes. */
 function applyFavicon(faviconUrl: string | null) {
-  if (typeof document === "undefined" || !faviconUrl) return;
-  const head = document.head;
-  const existing = head.querySelectorAll<HTMLLinkElement>("link[rel~='icon']");
-  existing.forEach((el) => el.parentNode?.removeChild(el));
-  const link = document.createElement("link");
-  link.rel = "icon";
-  link.href = faviconUrl;
-  head.appendChild(link);
+  if (typeof document === "undefined") return;
+
+  const safeFavicon = getSafeImageSrc(faviconUrl);
+  let link = document.querySelector<HTMLLinkElement>(
+    `link[${BRANDING_FAVICON_ATTR}]`,
+  );
+
+  if (!safeFavicon) {
+    link?.remove();
+    return;
+  }
+
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    link.setAttribute(BRANDING_FAVICON_ATTR, "true");
+    document.head.appendChild(link);
+  }
+
+  if (link.href !== safeFavicon) {
+    link.href = safeFavicon;
+  }
 }
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
@@ -46,9 +64,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       const data = await getPublicBranding();
       setBranding({
         siteName: data.siteName || DEFAULT_BRANDING.siteName,
-        logoUrl: data.logoUrl ?? null,
-        logoDarkUrl: data.logoDarkUrl ?? null,
-        faviconUrl: data.faviconUrl ?? null,
+        logoUrl: getSafeImageSrc(data.logoUrl ?? null),
+        logoDarkUrl: getSafeImageSrc(data.logoDarkUrl ?? null),
+        faviconUrl: getSafeImageSrc(data.faviconUrl ?? null),
       });
     } catch {
       // keep defaults on failure
