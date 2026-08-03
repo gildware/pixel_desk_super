@@ -90,6 +90,16 @@ export default function EditBlogPage({
     }
   }, [form, post, router]);
 
+  const updateForm = useCallback(
+    (value: React.SetStateAction<BlogFormState>) => {
+      setForm((prev) => {
+        if (!prev) return prev;
+        return typeof value === "function" ? value(prev) : value;
+      });
+    },
+    [],
+  );
+
   const handleDelete = useCallback(async () => {
     if (!post) return;
     setDeleting(true);
@@ -138,7 +148,7 @@ export default function EditBlogPage({
           <>
             <BlogFormFields
               form={form}
-              setForm={setForm}
+              setForm={updateForm}
               categories={categories}
             />
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 dark:border-gray-800">
