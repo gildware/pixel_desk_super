@@ -127,6 +127,20 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-blogs",
+    title: "Blogs",
+    message: "Create and manage blog posts for the marketing website.",
+    href: "/settings/blog",
+    kind: "menu",
+  },
+  {
+    id: "menu-blogs-new",
+    title: "Add blog post",
+    message: "Create a new marketing blog article.",
+    href: "/settings/blog/new",
+    kind: "menu",
+  },
+  {
     id: "setting-inactivity",
     title: "Inactivity settings",
     message: "Control warning and deletion rules for inactivity.",

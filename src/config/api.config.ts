@@ -66,6 +66,9 @@ export const apiConfig = {
       `${API_BASE}/super-admin/platform-defaults/widgets/${id}`,
     platformFaqs: `${API_BASE}/super-admin/platform-faqs`,
     platformFaq: (id: string) => `${API_BASE}/super-admin/platform-faqs/${id}`,
+    platformBlogPosts: `${API_BASE}/super-admin/platform-blog-posts`,
+    platformBlogPost: (id: string) =>
+      `${API_BASE}/super-admin/platform-blog-posts/${id}`,
     helpdeskTickets: `${API_BASE}/super-admin/helpdesk-tickets`,
     helpdeskTicket: (id: string) =>
       `${API_BASE}/super-admin/helpdesk-tickets/${id}`,

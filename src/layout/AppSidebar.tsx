@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { Icon: ListIcon, name: "Company defaults", path: "/settings/company-defaults" },
   { Icon: ListIcon, name: "Platform catalog", path: "/settings/platform-catalog" },
   { Icon: DocsIcon, name: "HelpDesk FAQs", path: "/settings/faqs" },
+  { Icon: FileIcon, name: "Blogs", path: "/settings/blog" },
   { Icon: TimeIcon, name: "Settings", path: "/settings" },
   { Icon: BoxCubeIcon, name: "Website settings", path: "/settings/website" },
   { Icon: MailIcon, name: "Email configurations", path: "/settings/email-configurations" },

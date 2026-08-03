@@ -18,21 +18,23 @@ async function resolveApiUrl(relativeOrAbsolute: string): Promise<string> {
   if (relativeOrAbsolute.startsWith("http")) return relativeOrAbsolute;
 
   if (relativeOrAbsolute.startsWith("/api/proxy")) {
-    const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "");
-    if (base) {
-      return `${base}${relativeOrAbsolute}`;
-    }
-
-    // Local dev fallback: cookies are scoped to localhost (not port), so the
-    // backend can validate the session directly when BASE_URL is not configured.
+    // Server-side: call the backend directly with forwarded request cookies.
+    // Avoids a self-fetch through NEXT_PUBLIC_BASE_URL (fragile when dev port
+    // differs from BASE_URL) and works in local dev where localhost cookies are
+    // not port-scoped.
     const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
     if (apiUrl) {
       const backendPath = relativeOrAbsolute.replace(/^\/api\/proxy/, "");
       return `${apiUrl}${backendPath}`;
     }
 
+    const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "");
+    if (base) {
+      return `${base}${relativeOrAbsolute}`;
+    }
+
     throw new Error(
-      "Set NEXT_PUBLIC_BASE_URL for server-side proxy calls, or NEXT_PUBLIC_API_URL for direct backend access.",
+      "Set NEXT_PUBLIC_API_URL for server-side session checks, or NEXT_PUBLIC_BASE_URL for self-proxy fallback.",
     );
   }
 

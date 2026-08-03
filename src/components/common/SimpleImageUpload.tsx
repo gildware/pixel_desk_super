@@ -23,6 +23,8 @@ type Props = {
   unitPx?: number;
   /** Hide the label row (when parent provides a section title). */
   hideLabel?: boolean;
+  /** Fill the parent container instead of fixed grid pixel dimensions. */
+  fillContainer?: boolean;
 };
 
 /** Default pixel size per grid unit when not overridden. */
@@ -74,6 +76,7 @@ export default function SimpleImageUpload({
   align = "left",
   unitPx = DEFAULT_GRID_UNIT_PX,
   hideLabel = false,
+  fillContainer = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -140,19 +143,21 @@ export default function SimpleImageUpload({
     onChange("");
   };
 
-  const boxStyle: React.CSSProperties = {
-    width: cols * unitPx,
-    height: rows * unitPx,
-    maxWidth: "100%",
-    flexShrink: 0,
-  };
+  const boxStyle: React.CSSProperties = fillContainer
+    ? { width: "100%", height: "100%", maxWidth: "100%" }
+    : {
+        width: cols * unitPx,
+        height: rows * unitPx,
+        maxWidth: "100%",
+        flexShrink: 0,
+      };
 
   const isCenter = align === "center";
 
   return (
     <>
       <div
-        className={`flex w-full flex-col gap-1.5 ${isCenter ? "items-center text-center" : "items-start text-left"}`}
+        className={`flex w-full flex-col gap-1.5 ${fillContainer ? "h-full" : ""} ${isCenter ? "items-center text-center" : "items-start text-left"}`}
       >
         {!hideLabel && (
           <span className="text-theme-xs font-medium text-gray-700 dark:text-gray-300">
@@ -174,7 +179,7 @@ export default function SimpleImageUpload({
             }
           }}
           style={boxStyle}
-          className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:bg-white/[0.04]"
+          className={`group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:bg-white/[0.04] ${fillContainer ? "min-h-0 flex-1" : ""}`}
         >
           {displayUrl ? (
             <img

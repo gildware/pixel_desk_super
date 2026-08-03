@@ -111,6 +111,12 @@ export default function OtpVerification({
         To login the dashboard, Enter the code here
       </p>
 
+      {process.env.NODE_ENV === "development" && (
+        <p className="mt-2 text-theme-xs text-gray-400 dark:text-gray-500">
+          Dev mode: use OTP <span className="font-medium">123456</span>
+        </p>
+      )}
+
       <div className="mt-4 flex justify-center gap-2 sm:gap-3">
         {otp.map((digit, index) => (
           <input

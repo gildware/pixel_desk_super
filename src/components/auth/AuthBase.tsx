@@ -31,12 +31,15 @@ export default function AuthBase() {
     }
   }, [session?.user?.isGlobalSuperAdmin, sessionLoading]);
 
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
   const handleRequestOtp = async (value: string, rememberChoice: boolean) => {
+    const normalizedEmail = normalizeEmail(value);
     try {
       setLoading(true);
       setError(undefined);
-      await requestOtp(value);
-      setEmail(value);
+      await requestOtp(normalizedEmail);
+      setEmail(normalizedEmail);
       setRememberMe(rememberChoice);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to send OTP");

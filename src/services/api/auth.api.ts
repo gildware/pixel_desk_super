@@ -9,7 +9,7 @@ import type {
 
 export async function requestOtp(email: string): Promise<RequestOtpResponse> {
   return apiClient.post<RequestOtpResponse>(apiConfig.auth.requestOtp, {
-    email,
+    email: email.trim().toLowerCase(),
   });
 }
 
@@ -19,7 +19,7 @@ export async function verifyOtp(
   rememberMe: boolean
 ): Promise<VerifyOtpResponse> {
   return apiClient.post<VerifyOtpResponse>(apiConfig.auth.verifyOtp, {
-    email,
+    email: email.trim().toLowerCase(),
     otp,
     rememberMe,
   });

@@ -44,12 +44,24 @@ async function proxyRequest(
       ? await req.arrayBuffer()
       : undefined;
 
-  const upstream = await fetch(targetUrl, {
-    method: req.method,
-    headers,
-    body,
-    cache: "no-store",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(targetUrl, {
+      method: req.method,
+      headers,
+      body,
+      cache: "no-store",
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        status: "error",
+        message:
+          "Cannot reach the API server. Ensure the backend is running and NEXT_PUBLIC_API_URL is correct.",
+      },
+      { status: 503 },
+    );
+  }
 
   const responseHeaders = new Headers();
   upstream.headers.forEach((value, key) => {
