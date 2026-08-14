@@ -64,11 +64,28 @@ export const apiConfig = {
     platformDefaultWidgets: `${API_BASE}/super-admin/platform-defaults/widgets`,
     platformDefaultWidget: (id: string) =>
       `${API_BASE}/super-admin/platform-defaults/widgets/${id}`,
+    platformDefaultWidgetLayouts: `${API_BASE}/super-admin/platform-defaults/widget-layouts`,
+    platformDefaultWidgetLayout: (audience: string) =>
+      `${API_BASE}/super-admin/platform-defaults/widget-layouts/${audience}`,
     platformFaqs: `${API_BASE}/super-admin/platform-faqs`,
     platformFaq: (id: string) => `${API_BASE}/super-admin/platform-faqs/${id}`,
+    platformWebsiteFaqs: `${API_BASE}/super-admin/platform-website-faqs`,
+    platformWebsiteFaq: (id: string) =>
+      `${API_BASE}/super-admin/platform-website-faqs/${id}`,
     platformBlogPosts: `${API_BASE}/super-admin/platform-blog-posts`,
     platformBlogPost: (id: string) =>
       `${API_BASE}/super-admin/platform-blog-posts/${id}`,
+    platformWhatsNewUpdates: `${API_BASE}/super-admin/platform-whats-new-updates`,
+    platformWhatsNewUpdate: (id: string) =>
+      `${API_BASE}/super-admin/platform-whats-new-updates/${id}`,
+    platformVideoTutorials: `${API_BASE}/super-admin/platform-video-tutorials`,
+    platformVideoTutorialCategories: `${API_BASE}/super-admin/platform-video-tutorial-categories`,
+    platformVideoTutorialCategory: (id: string) =>
+      `${API_BASE}/super-admin/platform-video-tutorial-categories/${id}`,
+    platformVideoTutorialCategoryLessons: (categoryId: string) =>
+      `${API_BASE}/super-admin/platform-video-tutorial-categories/${categoryId}/lessons`,
+    platformVideoTutorialLesson: (id: string) =>
+      `${API_BASE}/super-admin/platform-video-tutorial-lessons/${id}`,
     helpdeskTickets: `${API_BASE}/super-admin/helpdesk-tickets`,
     helpdeskTicket: (id: string) =>
       `${API_BASE}/super-admin/helpdesk-tickets/${id}`,

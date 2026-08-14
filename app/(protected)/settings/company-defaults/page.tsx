@@ -88,7 +88,7 @@ type TabId =
   | "activities"
   | "leaveTypes"
   | "defaultRoles"
-  | "widgets";
+  | "defaultWidgets";
 
 const VALID_TABS: TabId[] = [
   "bootstrap",
@@ -99,10 +99,11 @@ const VALID_TABS: TabId[] = [
   "activities",
   "leaveTypes",
   "defaultRoles",
-  "widgets",
+  "defaultWidgets",
 ];
 
 function parseTab(raw: string | null): TabId {
+  if (raw === "widgets") return "defaultWidgets";
   if (raw && VALID_TABS.includes(raw as TabId)) {
     return raw as TabId;
   }
@@ -445,7 +446,7 @@ export default function CompanyDefaultsPage() {
     { id: "activities", label: "Timesheet activities" },
     { id: "leaveTypes", label: "Leave types" },
     { id: "defaultRoles", label: "Default roles" },
-    { id: "widgets", label: "Widget Management" },
+    { id: "defaultWidgets", label: "Default Widgets" },
   ];
 
   return (
@@ -1090,7 +1091,7 @@ export default function CompanyDefaultsPage() {
 
           {tab === "defaultRoles" && <CompanyDefaultRolesTab />}
 
-          {tab === "widgets" && <CompanyDefaultWidgetsTab />}
+          {tab === "defaultWidgets" && <CompanyDefaultWidgetsTab />}
         </>
       )}
       </div>

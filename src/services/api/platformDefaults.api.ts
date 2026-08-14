@@ -5,6 +5,9 @@ import type {
   PlatformDefaultLeaveTypeRow,
   PlatformDefaultRow,
   PlatformDefaultWidgetRow,
+  PlatformDefaultWidgetLayoutRow,
+  WidgetLayoutItem,
+  WidgetLayoutAudience,
   PlatformDefaultsOverview,
 } from "@/src/types/platformDefaults.types";
 
@@ -219,4 +222,33 @@ export async function updatePlatformWidget(
     body,
   );
   return unwrap<PlatformDefaultWidgetRow>(res);
+}
+
+export async function listPlatformWidgetLayouts(): Promise<
+  PlatformDefaultWidgetLayoutRow[]
+> {
+  const res = await apiClient.get<unknown>(
+    apiConfig.superAdmin.platformDefaultWidgetLayouts,
+  );
+  return unwrap<PlatformDefaultWidgetLayoutRow[]>(res);
+}
+
+export async function getPlatformWidgetLayout(
+  audience: WidgetLayoutAudience,
+): Promise<PlatformDefaultWidgetLayoutRow> {
+  const res = await apiClient.get<unknown>(
+    apiConfig.superAdmin.platformDefaultWidgetLayout(audience),
+  );
+  return unwrap<PlatformDefaultWidgetLayoutRow>(res);
+}
+
+export async function replacePlatformWidgetLayout(
+  audience: WidgetLayoutAudience,
+  items: WidgetLayoutItem[],
+): Promise<PlatformDefaultWidgetLayoutRow> {
+  const res = await apiClient.put<unknown>(
+    apiConfig.superAdmin.platformDefaultWidgetLayout(audience),
+    { items },
+  );
+  return unwrap<PlatformDefaultWidgetLayoutRow>(res);
 }

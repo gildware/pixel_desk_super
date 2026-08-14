@@ -43,6 +43,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-apis",
+    title: "APIs",
+    message: "Review backend API security, tenant isolation, and test coverage.",
+    href: "/apis",
+    kind: "menu",
+  },
+  {
     id: "menu-orphan-data",
     title: "Orphan data",
     message: "Review orphaned records that need action.",
@@ -113,6 +120,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-widget-management",
+    title: "Widget Management",
+    message: "Configure dashboard widget icons, previews, and visibility.",
+    href: "/settings/widget-management",
+    kind: "menu",
+  },
+  {
     id: "menu-platform-catalog",
     title: "Platform catalog",
     message: "Manage industries, dashboard uses, and skillsets.",
@@ -127,10 +141,38 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
+    id: "menu-website-faqs",
+    title: "Website FAQs",
+    message: "Manage categories, questions and answers for the marketing FAQs page.",
+    href: "/settings/website-faqs",
+    kind: "menu",
+  },
+  {
     id: "menu-blogs",
     title: "Blogs",
     message: "Create and manage blog posts for the marketing website.",
     href: "/settings/blog",
+    kind: "menu",
+  },
+  {
+    id: "menu-whats-new",
+    title: "Website What's new",
+    message: "Manage product update timeline entries for the marketing website.",
+    href: "/settings/whats-new",
+    kind: "menu",
+  },
+  {
+    id: "menu-whats-new-new",
+    title: "Add What's new update",
+    message: "Create a new product update for the marketing website timeline.",
+    href: "/settings/whats-new/new",
+    kind: "menu",
+  },
+  {
+    id: "menu-video-tutorials",
+    title: "Video tutorials",
+    message: "Manage video tutorial categories and lessons for the marketing website.",
+    href: "/settings/video-tutorials",
     kind: "menu",
   },
   {
@@ -211,10 +253,17 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
+    id: "setting-company-default-widgets",
+    title: "Default Widgets",
+    message: "Choose default dashboard widgets for admins, members, and clients.",
+    href: "/settings/company-defaults?tab=defaultWidgets",
+    kind: "setting",
+  },
+  {
     id: "setting-company-widgets",
     title: "Widget Management",
-    message: "Configure dashboard widget icons and image types.",
-    href: "/settings/company-defaults?tab=widgets",
+    message: "Configure dashboard widget icons, previews, and visibility.",
+    href: "/settings/widget-management",
     kind: "setting",
   },
   {

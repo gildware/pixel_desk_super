@@ -42,7 +42,22 @@ export type PlatformDefaultLeaveTypeRow = PlatformDefaultRow & {
   shortName: string;
 };
 
-export type WidgetVisibility = "member" | "client" | "both";
+export type WidgetVisibility = "admin" | "member" | "client" | "both";
+
+export type WidgetLayoutAudience = "admin" | "member" | "client";
+
+export type WidgetLayoutItem = {
+  type: string;
+  x: number;
+  y: number;
+};
+
+export type PlatformDefaultWidgetLayoutRow = {
+  id: string;
+  audience: WidgetLayoutAudience;
+  items: WidgetLayoutItem[];
+  updatedAt: string;
+};
 
 export type PlatformDefaultWidgetRow = {
   id: string;

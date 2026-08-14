@@ -17,6 +17,8 @@ import {
   MailIcon,
   DocsIcon,
   BoxCubeIcon,
+  VideoIcon,
+  PlugInIcon,
 } from "@/src/icons/index";
 
 type NavItem = {
@@ -33,10 +35,15 @@ const navItems: NavItem[] = [
   { Icon: MailIcon, name: "Helpdesk", path: "/helpdesk" },
   { Icon: UserIcon, name: "Users", path: "/users" },
   { Icon: TimeIcon, name: "Audit logs", path: "/audit-logs" },
+  { Icon: PlugInIcon, name: "APIs", path: "/apis" },
   { Icon: ListIcon, name: "Company defaults", path: "/settings/company-defaults" },
+  { Icon: BoxCubeIcon, name: "Widget Management", path: "/settings/widget-management" },
   { Icon: ListIcon, name: "Platform catalog", path: "/settings/platform-catalog" },
   { Icon: DocsIcon, name: "HelpDesk FAQs", path: "/settings/faqs" },
+  { Icon: DocsIcon, name: "Website FAQs", path: "/settings/website-faqs" },
   { Icon: FileIcon, name: "Blogs", path: "/settings/blog" },
+  { Icon: BellIcon, name: "Website What's new", path: "/settings/whats-new" },
+  { Icon: VideoIcon, name: "Video tutorials", path: "/settings/video-tutorials" },
   { Icon: TimeIcon, name: "Settings", path: "/settings" },
   { Icon: BoxCubeIcon, name: "Website settings", path: "/settings/website" },
   { Icon: MailIcon, name: "Email configurations", path: "/settings/email-configurations" },
