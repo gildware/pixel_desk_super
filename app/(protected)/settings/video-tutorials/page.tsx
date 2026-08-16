@@ -324,7 +324,6 @@ export default function VideoTutorialsPage() {
                     checked={category.isActive}
                     disabled={togglingId === category.id}
                     onChange={(next) => toggleCategoryPublished(category, next)}
-                    label="Published"
                   />
                   <button
                     type="button"
@@ -389,7 +388,6 @@ export default function VideoTutorialsPage() {
                               checked={lesson.isActive}
                               disabled={togglingId === lesson.id}
                               onChange={(next) => toggleLessonPublished(lesson, next)}
-                              label="Published"
                             />
                           </td>
                           <td className="px-3 py-3">
@@ -471,7 +469,6 @@ export default function VideoTutorialsPage() {
               <PublishToggle
                 checked={categoryForm.isActive}
                 onChange={(next) => setCategoryForm((f) => ({ ...f, isActive: next }))}
-                label="Published"
               />
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -554,7 +551,6 @@ export default function VideoTutorialsPage() {
               <PublishToggle
                 checked={lessonForm.isActive}
                 onChange={(next) => setLessonForm((f) => ({ ...f, isActive: next }))}
-                label="Published"
               />
             </div>
             <div className="mt-6 flex justify-end gap-3">

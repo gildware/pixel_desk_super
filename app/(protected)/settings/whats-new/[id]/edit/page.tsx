@@ -81,6 +81,16 @@ export default function EditWhatsNewPage({
     }
   }, [form, row, router]);
 
+  const updateForm = useCallback(
+    (value: React.SetStateAction<WhatsNewFormState>) => {
+      setForm((prev) => {
+        if (!prev) return prev;
+        return typeof value === "function" ? value(prev) : value;
+      });
+    },
+    [],
+  );
+
   const handleDelete = useCallback(async () => {
     if (!row) return;
     setDeleting(true);
@@ -127,7 +137,7 @@ export default function EditWhatsNewPage({
           </p>
         ) : (
           <>
-            <WhatsNewFormFields form={form} setForm={setForm} />
+            <WhatsNewFormFields form={form} setForm={updateForm} />
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 dark:border-gray-800">
               <button
                 type="button"
