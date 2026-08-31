@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   listSuperAdminUsers,
   deleteSuperAdminUser,
@@ -41,14 +41,6 @@ export default function UsersPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
-
-  const visibleItems = useMemo(
-    () =>
-      (items ?? []).filter((u) =>
-        currentUserId ? u.id !== currentUserId : true
-      ),
-    [items, currentUserId]
-  );
 
   const formatLastActivity = (iso?: string | null) => {
     if (!iso) return "—";
@@ -160,7 +152,7 @@ export default function UsersPage() {
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
             Loading users…
           </p>
-        ) : visibleItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
             No users found.
           </p>
@@ -195,7 +187,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleItems.map((u) => (
+                  {items.map((u) => (
                     <tr
                       key={u.id}
                       className="border-b border-gray-100 dark:border-gray-800"
