@@ -43,13 +43,6 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "menu",
   },
   {
-    id: "menu-apis",
-    title: "APIs",
-    message: "Review backend API security, tenant isolation, and test coverage.",
-    href: "/apis",
-    kind: "menu",
-  },
-  {
     id: "menu-orphan-data",
     title: "Orphan data",
     message: "Review orphaned records that need action.",

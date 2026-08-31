@@ -3,10 +3,21 @@
 import React, { useEffect, useState } from "react";
 import SimpleImageUpload from "@/src/components/common/SimpleImageUpload";
 import {
+  WEBSITE_BRANDING_ASSETS,
+  isRemoteAssetUrl,
+} from "@/src/config/websiteBranding";
+import {
   getWebsiteSettings,
   updateWebsiteSettings,
 } from "@/src/services/api/settings.api";
 import { useBranding } from "@/src/context/BrandingContext";
+
+function storedAssetUrl(value: string): string | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isRemoteAssetUrl(trimmed)) return trimmed;
+  return undefined;
+}
 
 type TabId = "appearance";
 
@@ -20,17 +31,21 @@ export default function WebsiteSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [siteName, setSiteName] = useState<string>("PixelDesk");
-  const [logoUrl, setLogoUrl] = useState<string>("");
-  const [logoDarkUrl, setLogoDarkUrl] = useState<string>("");
-  const [faviconUrl, setFaviconUrl] = useState<string>("");
+  const [logoUrl, setLogoUrl] = useState<string>(WEBSITE_BRANDING_ASSETS.logoUrl);
+  const [logoDarkUrl, setLogoDarkUrl] = useState<string>(
+    WEBSITE_BRANDING_ASSETS.logoDarkUrl,
+  );
+  const [faviconUrl, setFaviconUrl] = useState<string>(
+    WEBSITE_BRANDING_ASSETS.faviconUrl,
+  );
 
   useEffect(() => {
     getWebsiteSettings()
       .then((s) => {
         setSiteName(s.siteName || "PixelDesk");
-        setLogoUrl(s.logoUrl ?? "");
-        setLogoDarkUrl(s.logoDarkUrl ?? "");
-        setFaviconUrl(s.faviconUrl ?? "");
+        setLogoUrl(WEBSITE_BRANDING_ASSETS.logoUrl);
+        setLogoDarkUrl(WEBSITE_BRANDING_ASSETS.logoDarkUrl);
+        setFaviconUrl(WEBSITE_BRANDING_ASSETS.faviconUrl);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Failed to load website settings");
@@ -43,16 +58,31 @@ export default function WebsiteSettingsPage() {
     setError(null);
     setSuccess(null);
     try {
+      const nextLogo = storedAssetUrl(logoUrl);
+      const nextLogoDark = storedAssetUrl(logoDarkUrl);
+      const nextFavicon = storedAssetUrl(faviconUrl);
       const updated = await updateWebsiteSettings({
         siteName,
-        logoUrl: logoUrl || null,
-        logoDarkUrl: logoDarkUrl || null,
-        faviconUrl: faviconUrl || null,
+        ...(nextLogo !== undefined ? { logoUrl: nextLogo } : {}),
+        ...(nextLogoDark !== undefined ? { logoDarkUrl: nextLogoDark } : {}),
+        ...(nextFavicon !== undefined ? { faviconUrl: nextFavicon } : {}),
       });
       setSiteName(updated.siteName || "PixelDesk");
-      setLogoUrl(updated.logoUrl ?? "");
-      setLogoDarkUrl(updated.logoDarkUrl ?? "");
-      setFaviconUrl(updated.faviconUrl ?? "");
+      setLogoUrl(
+        isRemoteAssetUrl(logoUrl)
+          ? (updated.logoUrl ?? logoUrl)
+          : WEBSITE_BRANDING_ASSETS.logoUrl,
+      );
+      setLogoDarkUrl(
+        isRemoteAssetUrl(logoDarkUrl)
+          ? (updated.logoDarkUrl ?? logoDarkUrl)
+          : WEBSITE_BRANDING_ASSETS.logoDarkUrl,
+      );
+      setFaviconUrl(
+        isRemoteAssetUrl(faviconUrl)
+          ? (updated.faviconUrl ?? faviconUrl)
+          : WEBSITE_BRANDING_ASSETS.faviconUrl,
+      );
       setSuccess("Website settings saved.");
       await refetchBranding();
     } catch (err) {
@@ -69,7 +99,7 @@ export default function WebsiteSettingsPage() {
           Website settings
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Branding used across the website, admin panel and super admin.
+          Site name is stored in settings. Logos match the public website.
         </p>
       </div>
 
@@ -128,10 +158,10 @@ export default function WebsiteSettingsPage() {
                 hideLabel
                 value={logoUrl}
                 onChange={setLogoUrl}
-                variant="preview"
-                gridCols={3}
+                variant="icon"
+                gridCols={5}
                 gridRows={1}
-                unitPx={80}
+                unitPx={26}
                 hint="Used on light backgrounds. PNG or SVG recommended."
               />
             </div>
@@ -145,10 +175,10 @@ export default function WebsiteSettingsPage() {
                 hideLabel
                 value={logoDarkUrl}
                 onChange={setLogoDarkUrl}
-                variant="preview"
-                gridCols={3}
+                variant="icon"
+                gridCols={5}
                 gridRows={1}
-                unitPx={80}
+                unitPx={26}
                 hint="Optional. Falls back to the main logo if empty."
               />
             </div>

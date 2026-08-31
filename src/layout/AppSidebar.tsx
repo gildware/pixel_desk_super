@@ -18,7 +18,6 @@ import {
   DocsIcon,
   BoxCubeIcon,
   VideoIcon,
-  PlugInIcon,
 } from "@/src/icons/index";
 
 type NavItem = {
@@ -35,7 +34,6 @@ const navItems: NavItem[] = [
   { Icon: MailIcon, name: "Helpdesk", path: "/helpdesk" },
   { Icon: UserIcon, name: "Users", path: "/users" },
   { Icon: TimeIcon, name: "Audit logs", path: "/audit-logs" },
-  { Icon: PlugInIcon, name: "APIs", path: "/apis" },
   { Icon: ListIcon, name: "Company defaults", path: "/settings/company-defaults" },
   { Icon: BoxCubeIcon, name: "Widget Management", path: "/settings/widget-management" },
   { Icon: ListIcon, name: "Platform catalog", path: "/settings/platform-catalog" },
@@ -86,13 +84,13 @@ const AppSidebar: React.FC = () => {
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  className="block max-h-10 w-auto object-contain dark:hidden"
+                  className="block max-h-6 w-auto max-w-[118px] object-contain dark:hidden"
                   src={lightLogo as string}
                   alt={branding.siteName}
                 />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  className="hidden max-h-10 w-auto object-contain dark:block"
+                  className="hidden max-h-6 w-auto max-w-[118px] object-contain dark:block"
                   src={darkLogo as string}
                   alt={branding.siteName}
                 />
@@ -100,7 +98,7 @@ const AppSidebar: React.FC = () => {
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                className="h-8 w-8 object-contain"
+                className="max-h-5 w-auto max-w-[48px] object-contain object-left"
                 src={lightLogo as string}
                 alt={branding.siteName}
               />

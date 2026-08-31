@@ -309,7 +309,14 @@ export default function AuditLogsPage() {
           </p>
         ) : items.length === 0 ? (
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-            No audit logs match your filters.
+            {companyId ||
+            outcome ||
+            resourceType ||
+            actionFilter ||
+            fromDate ||
+            toDate
+              ? "No audit logs match your filters."
+              : "No audit logs yet. Logins, creates, updates, and deletes will appear here."}
           </p>
         ) : (
           <>

@@ -97,9 +97,9 @@ const AppHeader: React.FC = () => {
             {branding.logoUrl ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="max-h-8 w-auto object-contain dark:hidden" src={branding.logoUrl} alt={branding.siteName} />
+                <img className="max-h-5 w-auto max-w-[110px] object-contain dark:hidden" src={branding.logoUrl} alt={branding.siteName} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="hidden max-h-8 w-auto object-contain dark:block" src={branding.logoDarkUrl || branding.logoUrl} alt={branding.siteName} />
+                <img className="hidden max-h-5 w-auto max-w-[110px] object-contain dark:block" src={branding.logoDarkUrl || branding.logoUrl} alt={branding.siteName} />
               </>
             ) : (
               <span className="font-semibold text-gray-800 dark:text-white text-lg">{branding.siteName}</span>

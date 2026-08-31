@@ -8,6 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import { WEBSITE_BRANDING_ASSETS } from "@/src/config/websiteBranding";
 import { getPublicBranding, type WebsiteSettings } from "@/src/services/api/settings.api";
 import { getSafeImageSrc } from "@/src/utils/safeUrl";
 
@@ -19,9 +20,9 @@ type BrandingContextType = {
 
 const DEFAULT_BRANDING: WebsiteSettings = {
   siteName: "PixelDesk Super Admin",
-  logoUrl: null,
-  logoDarkUrl: null,
-  faviconUrl: null,
+  logoUrl: WEBSITE_BRANDING_ASSETS.logoUrl,
+  logoDarkUrl: WEBSITE_BRANDING_ASSETS.logoDarkUrl,
+  faviconUrl: WEBSITE_BRANDING_ASSETS.faviconUrl,
 };
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
@@ -64,9 +65,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       const data = await getPublicBranding();
       setBranding({
         siteName: data.siteName || DEFAULT_BRANDING.siteName,
-        logoUrl: getSafeImageSrc(data.logoUrl ?? null),
-        logoDarkUrl: getSafeImageSrc(data.logoDarkUrl ?? null),
-        faviconUrl: getSafeImageSrc(data.faviconUrl ?? null),
+        // Super Admin chrome uses the same bundled website logos as the landing site.
+        logoUrl: DEFAULT_BRANDING.logoUrl,
+        logoDarkUrl: DEFAULT_BRANDING.logoDarkUrl,
+        faviconUrl: DEFAULT_BRANDING.faviconUrl,
       });
     } catch {
       // keep defaults on failure

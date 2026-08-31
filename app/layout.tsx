@@ -12,6 +12,9 @@ const outfit = Outfit({
 export const metadata = {
   title: "PixelDesk Super Admin",
   description: "PixelDesk Super Admin - Dashboard UI.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { requestOtp, verifyOtp, logout, getSession } from "@/src/services/api/auth.api";
+import { useBranding } from "@/src/context/BrandingContext";
 import { useSession } from "@/src/context/SessionContext";
 import LoginForm from "@/src/components/auth/LoginForm";
 import OtpVerification from "@/src/components/auth/OtpVerification";
 
 export default function AuthBase() {
+  const { branding } = useBranding();
   const { session, loading: sessionLoading, refetch } = useSession();
   const [email, setEmail] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
@@ -129,6 +131,22 @@ export default function AuthBase() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="flex w-full max-w-md flex-col items-center px-4">
+        {branding.logoUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="mb-6 max-h-6 w-auto max-w-[124px] object-contain dark:hidden"
+              src={branding.logoUrl}
+              alt={branding.siteName}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="mb-6 hidden max-h-6 w-auto max-w-[124px] object-contain dark:block"
+              src={branding.logoDarkUrl || branding.logoUrl}
+              alt={branding.siteName}
+            />
+          </>
+        ) : null}
         {!email ? (
           <LoginForm
             onContinue={handleRequestOtp}
