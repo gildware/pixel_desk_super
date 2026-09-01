@@ -16,14 +16,18 @@ const TAB_ORDER: PlatformEmailTemplateKey[] = [
   "otp",
   "resend_otp",
   "member_invite",
+  "member_added",
   "client_invite",
+  "client_added",
 ];
 
 const TAB_LABEL: Record<PlatformEmailTemplateKey, string> = {
   otp: "OTP",
   resend_otp: "Resend OTP",
   member_invite: "Member invite",
+  member_added: "Member added",
   client_invite: "Client invite",
+  client_added: "Client added",
 };
 
 const BRANDING_HTML_VARIABLES = [

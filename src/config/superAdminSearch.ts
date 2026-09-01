@@ -92,10 +92,24 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
+    id: "setting-email-member-added",
+    title: "Email: Member added",
+    message: "Edit the email sent when a team member is added directly to a company.",
+    href: "/settings/email-configurations?tab=member_added",
+    kind: "setting",
+  },
+  {
     id: "setting-email-client-invite",
     title: "Email: Client invite",
     message: "Edit the client invitation email template.",
     href: "/settings/email-configurations?tab=client_invite",
+    kind: "setting",
+  },
+  {
+    id: "setting-email-client-added",
+    title: "Email: Client added",
+    message: "Edit the email sent when a client is added directly to a company.",
+    href: "/settings/email-configurations?tab=client_added",
     kind: "setting",
   },
   {
