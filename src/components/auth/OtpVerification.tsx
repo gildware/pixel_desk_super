@@ -78,16 +78,6 @@ export default function OtpVerification({
     }
   };
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    index: number,
-  ) => {
-    if (e.key === "Backspace" && otp[index] === "" && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`);
-      prevInput?.focus();
-    }
-  };
-
   const otpValue = otp.join("");
   const isOtpComplete = otp.every((d) => d.length === 1);
   const canSubmit = isOtpComplete && !loading;
@@ -95,6 +85,26 @@ export default function OtpVerification({
   const submitOtp = async () => {
     if (!canSubmit) return;
     await onVerify?.(otpValue);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void submitOtp();
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void submitOtp();
+      return;
+    }
+    if (e.key === "Backspace" && otp[index] === "" && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
   };
 
   return (
@@ -117,6 +127,7 @@ export default function OtpVerification({
         </p>
       )}
 
+      <form onSubmit={handleSubmit}>
       <div className="mt-4 flex justify-center gap-2 sm:gap-3">
         {otp.map((digit, index) => (
           <input
@@ -124,6 +135,8 @@ export default function OtpVerification({
             id={`otp-${index}`}
             value={digit}
             maxLength={1}
+            inputMode="numeric"
+            autoComplete={index === 0 ? "one-time-code" : "off"}
             onChange={(e) => handleChange(e.target.value, index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={(e) => handlePaste(e, index)}
@@ -141,13 +154,13 @@ export default function OtpVerification({
       )}
 
       <button
-        type="button"
-        onClick={submitOtp}
+        type="submit"
         disabled={!canSubmit}
         className="mt-6 flex h-11 w-full items-center justify-center rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Verifying…" : "Verify OTP"}
       </button>
+      </form>
 
       {onResendOtp && (
         <div className="mt-6 flex flex-col items-center gap-1">
