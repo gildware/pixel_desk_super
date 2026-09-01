@@ -6,8 +6,10 @@ export type PlatformEmailTemplateKey =
   | "resend_otp"
   | "member_invite"
   | "member_added"
+  | "member_transferred"
   | "client_invite"
-  | "client_added";
+  | "client_added"
+  | "client_transferred";
 
 export type EmailTemplateRow = {
   key: PlatformEmailTemplateKey;

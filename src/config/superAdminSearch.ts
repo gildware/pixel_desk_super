@@ -99,6 +99,14 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
+    id: "setting-email-member-transferred",
+    title: "Email: Member transferred",
+    message:
+      "Edit the email sent when a member seat is moved to another login email.",
+    href: "/settings/email-configurations?tab=member_transferred",
+    kind: "setting",
+  },
+  {
     id: "setting-email-client-invite",
     title: "Email: Client invite",
     message: "Edit the client invitation email template.",
@@ -110,6 +118,14 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     title: "Email: Client added",
     message: "Edit the email sent when a client is added directly to a company.",
     href: "/settings/email-configurations?tab=client_added",
+    kind: "setting",
+  },
+  {
+    id: "setting-email-client-transferred",
+    title: "Email: Client transferred",
+    message:
+      "Edit the email sent when a client seat is moved to another login email.",
+    href: "/settings/email-configurations?tab=client_transferred",
     kind: "setting",
   },
   {
