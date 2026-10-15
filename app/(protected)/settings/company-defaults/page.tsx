@@ -82,6 +82,7 @@ function contractModelsToPayload(rows: DefaultContractModelDraft[]): Record<stri
 type TabId =
   | "bootstrap"
   | "weekendDefaults"
+  | "timesheetLookback"
   | "contractModels"
   | "departments"
   | "designations"
@@ -93,6 +94,7 @@ type TabId =
 const VALID_TABS: TabId[] = [
   "bootstrap",
   "weekendDefaults",
+  "timesheetLookback",
   "contractModels",
   "departments",
   "designations",
@@ -166,6 +168,7 @@ export default function CompanyDefaultsPage() {
   const [savingEmployeeIds, setSavingEmployeeIds] = useState(false);
   const [savingClientIds, setSavingClientIds] = useState(false);
   const [savingWeekendDefaults, setSavingWeekendDefaults] = useState(false);
+  const [savingTimesheetLookback, setSavingTimesheetLookback] = useState(false);
   const [savingContractModels, setSavingContractModels] = useState(false);
 
   const [departments, setDepartments] = useState<PlatformDefaultRow[]>([]);
@@ -285,6 +288,22 @@ export default function CompanyDefaultsPage() {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSavingWeekendDefaults(false);
+    }
+  };
+
+  const handleSaveTimesheetLookback = async () => {
+    if (!bootstrap) return;
+    setSavingTimesheetLookback(true);
+    setError(null);
+    try {
+      const updated = await patchPlatformBootstrap({
+        defaultTimesheetLookbackDays: Number(bootstrap.defaultTimesheetLookbackDays),
+      });
+      setBootstrap(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingTimesheetLookback(false);
     }
   };
 
@@ -440,6 +459,7 @@ export default function CompanyDefaultsPage() {
   const tabs: { id: TabId; label: string }[] = [
     { id: "bootstrap", label: "Auto IDs" },
     { id: "weekendDefaults", label: "Company weekend defaults" },
+    { id: "timesheetLookback", label: "Timesheet lookback" },
     { id: "contractModels", label: "Client contract models" },
     { id: "departments", label: "Departments" },
     { id: "designations", label: "Designations" },
@@ -809,6 +829,46 @@ export default function CompanyDefaultsPage() {
                   className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
                 >
                   {savingContractModels ? "Saving…" : "Save contract models"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === "timesheetLookback" && bootstrap && (
+            <div className="max-w-3xl">
+              <p className="mb-4 text-theme-sm text-gray-600 dark:text-gray-400">
+                Default timesheet lookback for newly created companies. Existing
+                companies keep their own value.
+              </p>
+              <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                <label className="block text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                  Lookback days
+                </label>
+                <p className="mt-1 mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
+                  How many days before an employee is added that their joining
+                  date can still start timesheets. 0 starts on the day they are
+                  added. A company can change this in Company Settings.
+                </p>
+                <input
+                  type="number"
+                  min={0}
+                  max={365}
+                  className={inputClass}
+                  value={bootstrap.defaultTimesheetLookbackDays ?? 14}
+                  onChange={(e) =>
+                    setBootstrap({
+                      ...bootstrap,
+                      defaultTimesheetLookbackDays: Number(e.target.value),
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveTimesheetLookback}
+                  disabled={savingTimesheetLookback}
+                  className="mt-4 rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                >
+                  {savingTimesheetLookback ? "Saving…" : "Save timesheet lookback"}
                 </button>
               </div>
             </div>

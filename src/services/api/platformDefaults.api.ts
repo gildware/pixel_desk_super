@@ -42,6 +42,7 @@ export async function patchPlatformBootstrap(
       | "clientPrefix"
       | "clientIdCounter"
       | "defaultWeekendDays"
+      | "defaultTimesheetLookbackDays"
       | "defaultContractModels"
     >
   >,

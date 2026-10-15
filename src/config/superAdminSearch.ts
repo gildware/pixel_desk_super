@@ -234,6 +234,13 @@ export const SUPER_ADMIN_SEARCH_ITEMS: SuperAdminSearchItem[] = [
     kind: "setting",
   },
   {
+    id: "setting-company-timesheet-lookback",
+    title: "Timesheet lookback",
+    message: "Set the default timesheet lookback for newly created companies.",
+    href: "/settings/company-defaults?tab=timesheetLookback",
+    kind: "setting",
+  },
+  {
     id: "setting-company-contract-models",
     title: "Client contract models",
     message: "Manage default contract models for new companies.",

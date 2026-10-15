@@ -24,6 +24,7 @@ export type PlatformBootstrap = {
   clientPrefix: string;
   clientIdCounter: number;
   defaultWeekendDays: string[];
+  defaultTimesheetLookbackDays: number;
   defaultContractModels: Record<string, unknown>[] | null;
   updatedAt: string;
 };
