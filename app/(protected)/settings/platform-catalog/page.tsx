@@ -1333,9 +1333,6 @@ function ProjectTypeEditModal({
         <h3 className="text-theme-sm font-semibold text-gray-900 dark:text-white">
           Edit project type
         </h3>
-        <p className="mt-1 font-mono text-theme-xs text-gray-500 dark:text-gray-400">
-          Key: {projectType.projectType}
-        </p>
         <div className="mt-4 space-y-3">
           <label className="block">
             <span className="mb-1 block text-theme-xs text-gray-500 dark:text-gray-400">Type</span>
@@ -1418,7 +1415,6 @@ function IndustryProjectTypesSection({
             <tr>
               <th className="w-10 px-2 py-2" aria-label="Reorder" />
               <th className="px-2 py-2">Type</th>
-              <th className="px-2 py-2">Key</th>
               <th className="px-2 py-2">Unit placeholder</th>
               <th className="px-2 py-2">Actions</th>
             </tr>
@@ -1436,9 +1432,6 @@ function IndustryProjectTypesSection({
                   />
                 </td>
                 <td className="px-2 py-2">{displayProjectTypeLabel(pt)}</td>
-                <td className="px-2 py-2 font-mono text-gray-500 dark:text-gray-400">
-                  {pt.projectType}
-                </td>
                 <td className="px-2 py-2 text-gray-600 dark:text-gray-400">{pt.placeholder}</td>
                 <td className="px-2 py-2">
                   <div className="flex items-center gap-3">
